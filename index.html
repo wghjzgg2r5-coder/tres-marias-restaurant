@@ -66,7 +66,9 @@
   .flag .g{width:42%;background:var(--pt-green)}
   .flag .r{width:58%;background:var(--pt-red)}
   .nav-links{display:flex;align-items:center;gap:36px;font-family:'Jost',sans-serif;font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:400}
-  .nav-links a{color:var(--ink-soft);transition:color .25s}
+  .nav-links a{color:var(--ink);font-weight:500;text-shadow:0 1px 3px rgba(251,247,240,.9);transition:color .25s}
+  nav::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(251,247,240,.92),rgba(251,247,240,0));transition:opacity .4s}
+  nav.scrolled::before{opacity:0}
   .nav-links a:hover{color:var(--pt-red)}
   .nav-cta{background:var(--pt-red);color:#fff!important;padding:11px 22px;border-radius:2px;transition:background .25s}
   .nav-cta:hover{background:var(--pt-red-deep)}
@@ -249,7 +251,7 @@
 
 <!-- NAV -->
 <nav id="nav">
-  <a href="#top" class="brand"><span class="flag"><i class="g"></i><i class="r"></i></span>Três <em>Marias</em></a>
+  <a href="#top" class="brand">Três <em>Marias</em></a>
   <div class="nav-links" id="navlinks">
     <a href="#histoire">La Maison</a>
     <a href="#carte">La Carte</a>
@@ -299,7 +301,6 @@
     <h2>Un bout de Portugal, <em>en famille</em></h2>
     <p class="drop">Chez Três Marias, tout est fait maison, dans la tradition portugaise. La morue mijotée, les sardines grillées à la braise, les planches généreuses à partager : des recettes transmises et servies avec le cœur.</p>
     <p>Depuis un quart de siècle, notre table réunit habitués et curieux autour d'une cuisine généreuse, d'un verre de vinho verde et d'un accueil chaleureux, l'esprit convivial du Portugal, ici dans la Vienne.</p>
-    <p class="sig">« Bem-vindos, soyez les bienvenus à notre table. »</p>
   </div>
 </section>
 
@@ -441,10 +442,6 @@
       <div class="hours-row"><span>Sam · Dim</span><span>À emporter</span></div>
       <div class="hours-row closed"><span>Lundi</span><span>Fermé</span></div>
     </div>
-  </div>
-  <div class="foot-bottom">
-    <span>© 2026 Três Marias · Sèvres-Anxaumont</span>
-    <span>Feito com ♥ no Portugal &amp; na Vienne</span>
   </div>
 </footer>
 
