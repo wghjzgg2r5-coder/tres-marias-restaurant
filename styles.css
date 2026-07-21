@@ -1,0 +1,638 @@
+/* =====================================================================
+   styles.css — Mobile-first, variables CSS, mode sombre système.
+   Aucune couleur codée en dur dans le HTML/JS : tout passe par ces
+   variables ou par les couleurs de régions injectées en style inline
+   depuis data.js.
+   ===================================================================== */
+
+:root {
+  /* Couleurs de régions (miroir de data.js REGIONS) */
+  --color-city: #C45A32;      --color-city-light: #FBEAE1;
+  --color-coffee: #3F8050;    --color-coffee-light: #E6F1E8;
+  --color-jungle: #2C6F5D;    --color-jungle-light: #E1EDE9;
+  --color-carib: #1D8AAC;     --color-carib-light: #DEF0F5;
+  --color-colonial: #BF8A2C;  --color-colonial-light: #F6EBD2;
+
+  /* Niveaux d'effort */
+  --effort-calm: #7AA86A;
+  --effort-moderate: #E0A83D;
+  --effort-sporty: #CF6A3F;
+
+  /* Interface — thème clair */
+  --bg: #F7F4EF;
+  --bg-elevated: #FFFFFF;
+  --bg-sunken: #EFEAE1;
+  --text: #23201C;
+  --text-soft: #5C554C;
+  --text-muted: #8A8177;
+  --border: rgba(35, 32, 28, 0.12);
+  --border-strong: rgba(35, 32, 28, 0.22);
+  --accent: #C45A32;
+  --accent-text: #FFFFFF;
+  --shadow: 0 2px 10px rgba(35, 32, 28, 0.08);
+  --shadow-lg: 0 6px 24px rgba(35, 32, 28, 0.14);
+  --offline-bg: #7A5A1E;
+  --offline-text: #FFF4DE;
+
+  /* Typographie */
+  --font-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               Helvetica, Arial, sans-serif;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-md: 1.125rem;
+  --fs-lg: 1.375rem;
+  --fs-xl: 1.75rem;
+  --fs-2xl: 2.125rem;
+
+  /* Rythme */
+  --radius: 14px;
+  --radius-sm: 9px;
+  --radius-pill: 999px;
+  --gap: 1rem;
+  --tap: 44px;                 /* zone de tap minimale iOS */
+  --tabbar-h: 68px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171512;
+    --bg-elevated: #221F1A;
+    --bg-sunken: #100E0C;
+    --text: #F2EDE5;
+    --text-soft: #C7BEB1;
+    --text-muted: #928A7D;
+    --border: rgba(242, 237, 229, 0.14);
+    --border-strong: rgba(242, 237, 229, 0.26);
+    --accent: #E27B4E;
+    --accent-text: #171512;
+    --shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 6px 24px rgba(0, 0, 0, 0.5);
+    --offline-bg: #C79A46;
+    --offline-text: #1A140A;
+
+    /* Versions "light" des régions assombries pour bandeaux en dark */
+    --color-city-light: #3A241A;
+    --color-coffee-light: #1D2E22;
+    --color-jungle-light: #16261F;
+    --color-carib-light: #142B33;
+    --color-colonial-light: #2E2513;
+  }
+}
+
+/* ============================ Reset léger ============================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font-base);
+  font-size: var(--fs-base);
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+img, svg { display: block; max-width: 100%; }
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+a { color: var(--accent); text-decoration: none; }
+
+h1, h2, h3 { line-height: 1.15; font-weight: 700; }
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============================ Layout ============================ */
+#app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+}
+
+.view {
+  display: none;
+  padding: 1rem 1rem 2rem;
+  max-width: 720px;
+  margin: 0 auto;
+  animation: fade 0.22s ease;
+}
+.view.active { display: block; }
+
+@keyframes fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Bandeau hors-ligne */
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: none;
+  padding: calc(0.5rem + var(--safe-top)) 1rem 0.5rem;
+  background: var(--offline-bg);
+  color: var(--offline-text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-align: center;
+}
+body.is-offline .offline-banner { display: block; }
+
+/* ============================ En-tête de vue ============================ */
+.view-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.view-header h1 { font-size: var(--fs-xl); }
+.view-header .view-sub { color: var(--text-muted); font-size: var(--fs-sm); }
+
+/* ============================ Badges & pastilles ============================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.28em 0.7em;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.effort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.effort .dots { letter-spacing: 0.12em; font-size: 0.7rem; }
+
+/* ============================ Vue AUJOURD'HUI ============================ */
+.day-card {
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.day-hero {
+  padding: 1.1rem 1.15rem 1rem;
+  border-left: 6px solid var(--region-color, var(--accent));
+}
+.day-hero .day-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.day-kicker .day-num {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.day-hero h1 {
+  font-size: var(--fs-2xl);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.3rem;
+}
+.day-hero .day-date {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  text-transform: capitalize;
+}
+
+.day-section {
+  padding: 1rem 1.15rem;
+  border-top: 1px solid var(--border);
+}
+.day-section h2 {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+.day-section p { color: var(--text-soft); }
+.day-section p + p { margin-top: 0.6rem; }
+
+.info-row {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+}
+.info-row + .info-row { border-top: 1px dashed var(--border); }
+.info-row .info-label { flex: 0 0 8.5rem; color: var(--text-muted); font-size: var(--fs-sm); }
+.info-row .info-value { flex: 1; }
+
+.warning {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin: 1rem 1.15rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--color-city-light);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+.warning .warn-icon { flex: 0 0 auto; }
+
+.accommodation-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  min-height: var(--tap);
+  padding: 0.55rem 1rem;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Navigation jour précédent / suivant */
+.day-nav {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+.day-nav button {
+  flex: 1;
+  min-height: var(--tap);
+  padding: 0.6rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.day-nav button:disabled { opacity: 0.4; cursor: default; }
+.day-nav button:active:not(:disabled) { transform: scale(0.98); }
+
+/* ============================ Vue CALENDRIER ============================ */
+.cal-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.7rem;
+}
+@media (min-width: 560px) {
+  .cal-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 720px) {
+  .cal-grid { grid-template-columns: repeat(7, 1fr); }
+  .cal-week-label { grid-column: 1 / -1; }
+}
+
+.cal-week-label {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 700;
+  margin-top: 0.4rem;
+}
+
+.cal-cell {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  min-height: var(--tap);
+}
+.cal-cell:active { transform: scale(0.99); }
+.cal-cell.is-today { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.cal-band {
+  height: 6px;
+  background: var(--region-color, var(--accent));
+}
+.cal-body { padding: 0.6rem 0.7rem 0.7rem; flex: 1; }
+.cal-cell .cal-daynum {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cal-cell .cal-place {
+  font-weight: 700;
+  font-size: var(--fs-base);
+  margin: 0.2rem 0 0.3rem;
+  line-height: 1.2;
+}
+.cal-cell .cal-summary {
+  font-size: var(--fs-xs);
+  color: var(--text-soft);
+  line-height: 1.4;
+}
+.cal-cell .cal-effort-dots { letter-spacing: 0.1em; font-size: 0.65rem; }
+
+/* ============================ Vue CARTE ============================ */
+.map-wrap {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  box-shadow: var(--shadow);
+}
+.map-wrap svg { width: 100%; height: auto; }
+
+.map-legend {
+  display: grid;
+  gap: 0.9rem;
+  margin: 1.1rem 0;
+}
+.legend-group h3 {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+.legend-items { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: var(--fs-sm);
+  color: var(--text-soft);
+}
+.legend-swatch {
+  width: 16px; height: 16px;
+  border-radius: 5px;
+  flex: 0 0 auto;
+}
+.legend-line {
+  width: 28px; height: 0;
+  flex: 0 0 auto;
+  border-top: 3px solid var(--text-soft);
+}
+.legend-line.dashed { border-top-style: dashed; }
+
+.stage-list { display: grid; gap: 0.6rem; margin-top: 0.5rem; }
+.stage-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  text-align: left;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  min-height: var(--tap);
+}
+.stage-item:active { transform: scale(0.99); }
+.stage-num {
+  flex: 0 0 auto;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  background: var(--region-color, var(--accent));
+}
+.stage-text { flex: 1; }
+.stage-text .stage-label { font-weight: 700; line-height: 1.25; }
+.stage-text .stage-days { font-size: var(--fs-sm); color: var(--text-muted); }
+.stage-chevron { color: var(--text-muted); flex: 0 0 auto; }
+
+/* ============================ Vue PRATIQUE ============================ */
+.pills {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.2rem;
+}
+.pill {
+  flex: 1 0 auto;
+  min-height: var(--tap);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+.pill.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.subview { display: none; }
+.subview.active { display: block; }
+
+/* Trajets */
+.leg-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1rem 1.05rem;
+  margin-bottom: 0.9rem;
+}
+.leg-card h3 {
+  font-size: var(--fs-md);
+  margin-bottom: 0.5rem;
+}
+.leg-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.7rem;
+}
+.leg-chip {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  padding: 0.25em 0.65em;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  color: var(--text-soft);
+}
+.leg-card p { font-size: var(--fs-sm); color: var(--text-soft); }
+.leg-card .leg-alt {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border);
+}
+.leg-card .leg-alt strong { color: var(--text); }
+
+.book-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+  min-height: var(--tap);
+  width: 100%;
+  padding: 0.65rem 1rem;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+}
+.book-btn:active { transform: scale(0.99); }
+
+.book-offline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+  min-height: var(--tap);
+  padding: 0.65rem 1rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+}
+.book-none {
+  margin-top: 0.85rem;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Budget */
+.budget-total {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.15rem;
+  margin-bottom: 1.1rem;
+  box-shadow: var(--shadow-lg);
+}
+.budget-total .bt-label {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+.budget-total .bt-amount { font-size: var(--fs-xl); font-weight: 800; margin: 0.15rem 0; }
+.budget-total .bt-note { font-size: var(--fs-xs); opacity: 0.85; }
+
+.budget-item {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.7rem;
+}
+.budget-item .bi-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+.budget-item .bi-cat { font-weight: 700; }
+.budget-item .bi-range { font-weight: 700; color: var(--accent); white-space: nowrap; }
+.budget-item .bi-detail { font-size: var(--fs-sm); color: var(--text-soft); margin-top: 0.3rem; }
+
+/* Infos utiles */
+.info-list { display: grid; gap: 0.6rem; }
+.info-tip {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 0.8rem 0.95rem;
+}
+.info-tip .tip-icon { flex: 0 0 auto; font-size: 1.25rem; line-height: 1.3; }
+.info-tip .tip-text { font-size: var(--fs-sm); color: var(--text-soft); }
+
+/* ============================ Bouton flottant "Aujourd'hui" ============================ */
+.today-fab {
+  position: fixed;
+  right: 0.9rem;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 0.7rem);
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--tap);
+  padding: 0.5rem 0.95rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  box-shadow: var(--shadow-lg);
+}
+.today-fab:active { transform: scale(0.97); }
+.today-fab.hidden { display: none; }
+
+/* ============================ Tab bar (bas d'écran) ============================ */
+.tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 45;
+  display: flex;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  padding-bottom: var(--safe-bottom);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+}
+.tab {
+  flex: 1;
+  min-height: var(--tabbar-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0.4rem 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.tab .tab-icon { width: 26px; height: 26px; }
+.tab.active { color: var(--accent); }
+.tab.active .tab-icon { stroke: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
