@@ -121,6 +121,9 @@ h1, h2, h3 { line-height: 1.15; font-weight: 700; }
 #app {
   min-height: 100vh;
   min-height: 100dvh;
+  /* Réserve l'espace de la barre d'état / encoche iOS pour que le titre
+     ne passe pas sous la barre du haut (Safari, PWA ou app Documents). */
+  padding-top: max(env(safe-area-inset-top, 0px), 8px);
   padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom));
 }
 
