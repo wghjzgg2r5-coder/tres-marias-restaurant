@@ -1,0 +1,2180 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1f7a4d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐔%3C/text%3E%3C/svg%3E">
+<title>Gestion Avicole — Ferme de pondeuses</title>
+<!--
+  ============================================================================
+  APPLICATION DE GESTION AVICOLE (poules pondeuses)
+  ----------------------------------------------------------------------------
+  Application web autonome, mono-fichier, 100% en français.
+  Fonctionne en local dans le navigateur, sans serveur.
+  Persistance : IndexedDB (base "GestionAvicole").
+  Aucune donnée n'est envoyée à l'extérieur.
+
+  Librairies embarquées LOCALEMENT (dossier ./vendor) — AUCUN appel réseau,
+  aucune donnée envoyée à l'extérieur. Utilisées pour :
+    - Chart.js   : graphiques
+    - SheetJS    : export Excel (.xlsx)
+    - jsPDF (+autotable) : export PDF
+  Si un fichier vendor est absent, l'application reste utilisable ; seuls les
+  graphiques/exports concernés sont désactivés (dégradation gracieuse).
+  ============================================================================
+-->
+<script src="vendor/chart.umd.min.js" defer></script>
+<script src="vendor/xlsx.full.min.js" defer></script>
+<script src="vendor/jspdf.umd.min.js" defer></script>
+<script src="vendor/jspdf.plugin.autotable.min.js" defer></script>
+<style>
+/* ===========================================================================
+   VARIABLES & RESET
+   =========================================================================== */
+:root{
+  --vert:#1f7a4d; --vert-fonce:#155c39; --vert-clair:#e8f5ee;
+  --paille:#e9b949; --paille-fonce:#c9971f;
+  --brun:#8a5a2b;
+  --rouge:#d9463c; --rouge-clair:#fbeae9;
+  --orange:#e08b1e; --orange-clair:#fdf1e0;
+  --bleu:#2b7bb9; --bleu-clair:#e7f1f9;
+  --ink:#26302b; --ink-soft:#5c6660; --muted:#8a938d;
+  --paper:#f6f8f5; --paper-2:#ffffff; --card:#ffffff;
+  --line:rgba(38,48,43,.12); --line-fort:rgba(38,48,43,.2);
+  --ombre:0 1px 3px rgba(38,48,43,.08), 0 4px 16px rgba(38,48,43,.06);
+  --ombre-fort:0 8px 30px rgba(38,48,43,.18);
+  --radius:12px; --radius-sm:8px;
+  --nav-w:250px;
+  --fs:15px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--paper); color:var(--ink); font-size:var(--fs); line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{line-height:1.2;font-weight:650}
+a{color:var(--vert);text-decoration:none}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:inherit}
+table{border-collapse:collapse;width:100%}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line-fort);border-radius:6px}
+
+/* ===========================================================================
+   MISE EN PAGE : barre latérale + contenu
+   =========================================================================== */
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:var(--nav-w);flex:0 0 var(--nav-w);
+  background:linear-gradient(180deg,var(--vert-fonce),var(--vert));
+  color:#eafaf1;position:fixed;top:0;bottom:0;left:0;z-index:40;
+  display:flex;flex-direction:column;transition:transform .25s ease;
+}
+.sidebar .brand{padding:18px 18px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.15)}
+.sidebar .brand .logo{font-size:26px;line-height:1}
+.sidebar .brand b{font-size:16px;font-weight:700;letter-spacing:.2px;display:block}
+.sidebar .brand small{color:rgba(255,255,255,.7);font-size:11.5px}
+.sidebar nav{flex:1;overflow-y:auto;padding:10px 8px}
+.navbtn{
+  display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  background:transparent;border:0;color:#eafaf1;padding:10px 12px;border-radius:9px;
+  margin:2px 0;opacity:.92;transition:background .12s;
+}
+.navbtn .ic{width:22px;text-align:center;font-size:16px}
+.navbtn:hover{background:rgba(255,255,255,.12)}
+.navbtn.actif{background:rgba(255,255,255,.2);font-weight:650;opacity:1}
+.navbtn .badge{margin-left:auto;background:var(--rouge);color:#fff;border-radius:20px;font-size:11px;font-weight:700;padding:1px 7px;min-width:20px;text-align:center}
+.sidebar .pied{padding:10px 14px;border-top:1px solid rgba(255,255,255,.15);font-size:11.5px;color:rgba(255,255,255,.7)}
+
+.main{flex:1;margin-left:var(--nav-w);min-width:0;display:flex;flex-direction:column}
+.topbar{
+  position:sticky;top:0;z-index:30;background:var(--paper-2);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:14px;padding:12px 22px;box-shadow:0 1px 0 rgba(0,0,0,.02);
+}
+.topbar h1{font-size:19px;font-weight:700}
+.topbar .sous{color:var(--muted);font-size:13px;margin-left:2px}
+.burger{display:none;background:var(--vert);color:#fff;border:0;border-radius:8px;width:38px;height:38px;font-size:18px}
+.topbar .lot-select{margin-left:auto;display:flex;align-items:center;gap:8px}
+.topbar .lot-select label{font-size:12px;color:var(--muted)}
+.content{padding:22px;max-width:1280px;width:100%}
+
+/* ===========================================================================
+   COMPOSANTS
+   =========================================================================== */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--ombre)}
+.card.pad{padding:18px}
+.section-titre{display:flex;align-items:center;gap:10px;margin:6px 0 14px}
+.section-titre h2{font-size:17px}
+.section-titre .ic{font-size:20px}
+.grid{display:grid;gap:16px}
+.grid.kpi{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.grid.c2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.grid.c3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+
+.kpi-card{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--muted);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--ombre)}
+.kpi-card.v{border-left-color:var(--vert)} .kpi-card.o{border-left-color:var(--orange)} .kpi-card.r{border-left-color:var(--rouge)} .kpi-card.b{border-left-color:var(--bleu)}
+.kpi-card .lib{font-size:12.5px;color:var(--ink-soft);display:flex;align-items:center;gap:6px;font-weight:600}
+.kpi-card .val{font-size:27px;font-weight:750;margin:5px 0 2px;letter-spacing:-.5px}
+.kpi-card .val small{font-size:14px;font-weight:600;color:var(--muted)}
+.kpi-card .cmp{font-size:12px;color:var(--muted)}
+.kpi-card .cmp.up{color:var(--vert)} .kpi-card .cmp.down{color:var(--rouge)}
+
+.btn{display:inline-flex;align-items:center;gap:7px;background:var(--vert);color:#fff;border:0;border-radius:9px;padding:9px 15px;font-weight:600;box-shadow:var(--ombre);transition:filter .12s,transform .05s}
+.btn:hover{filter:brightness(1.06)} .btn:active{transform:translateY(1px)}
+.btn.sec{background:var(--paper-2);color:var(--ink);border:1px solid var(--line-fort);box-shadow:none}
+.btn.sec:hover{background:var(--paper)}
+.btn.dang{background:var(--rouge)}
+.btn.ghost{background:transparent;color:var(--vert);box-shadow:none;border:1px solid var(--vert)}
+.btn.sm{padding:6px 10px;font-size:13px;border-radius:7px}
+.btn.xs{padding:3px 8px;font-size:12px;border-radius:6px;box-shadow:none}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.barre-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.barre-actions .spacer{flex:1}
+
+label.champ{display:block;margin-bottom:12px}
+label.champ > span{display:block;font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-bottom:4px}
+input[type=text],input[type=number],input[type=date],input[type=email],input[type=tel],select,textarea{
+  width:100%;padding:9px 11px;border:1px solid var(--line-fort);border-radius:var(--radius-sm);background:var(--paper-2);color:var(--ink);
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--vert-clair);border-color:var(--vert)}
+textarea{resize:vertical;min-height:64px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0 16px}
+.form-grid.c4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.aide{font-size:11.5px;color:var(--muted);margin-top:2px}
+.calc-live{background:var(--vert-clair);border:1px solid var(--vert);border-radius:var(--radius-sm);padding:10px 14px;display:flex;flex-wrap:wrap;gap:16px;margin:6px 0 14px}
+.calc-live .it{font-size:12.5px;color:var(--vert-fonce)} .calc-live .it b{display:block;font-size:18px;color:var(--ink)}
+
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+table.data{font-size:13.5px}
+table.data th,table.data td{padding:8px 11px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+table.data thead th{background:var(--vert-clair);color:var(--vert-fonce);font-weight:700;position:sticky;top:0;font-size:12px;text-transform:uppercase;letter-spacing:.3px}
+table.data tbody tr:hover{background:var(--vert-clair)}
+table.data td.num,table.data th.num{text-align:right;font-variant-numeric:tabular-nums}
+table.data td.act{text-align:right}
+.tfoot td{font-weight:700;background:var(--paper)}
+
+.tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700}
+.tag.v{background:var(--vert-clair);color:var(--vert-fonce)} .tag.o{background:var(--orange-clair);color:var(--orange)} .tag.r{background:var(--rouge-clair);color:var(--rouge)} .tag.b{background:var(--bleu-clair);color:var(--bleu)} .tag.g{background:#eceeec;color:var(--ink-soft)}
+
+.alerte{display:flex;gap:11px;align-items:flex-start;padding:11px 14px;border-radius:var(--radius-sm);margin-bottom:10px;border:1px solid}
+.alerte .ic{font-size:18px;line-height:1.2}
+.alerte.r{background:var(--rouge-clair);border-color:var(--rouge);color:#8f2b23}
+.alerte.o{background:var(--orange-clair);border-color:var(--orange);color:#8a5410}
+.alerte.v{background:var(--vert-clair);border-color:var(--vert);color:var(--vert-fonce)}
+.alerte.b{background:var(--bleu-clair);border-color:var(--bleu);color:#1c5480}
+.alerte b{font-weight:700}
+.vide{text-align:center;color:var(--muted);padding:36px 16px}
+.vide .em{font-size:34px;display:block;margin-bottom:8px}
+
+/* Modale */
+.modal-fond{position:fixed;inset:0;background:rgba(20,30,24,.5);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:28px 16px;overflow-y:auto}
+.modal-fond.ouvert{display:flex}
+.modal{background:var(--card);border-radius:14px;box-shadow:var(--ombre-fort);width:100%;max-width:640px;animation:pop .16s ease}
+.modal.large{max-width:920px}
+@keyframes pop{from{transform:translateY(10px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+.modal .mh{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.modal .mh h3{font-size:17px}
+.modal .mh .x{margin-left:auto;background:transparent;border:0;font-size:22px;color:var(--muted);width:32px;height:32px;border-radius:8px}
+.modal .mh .x:hover{background:var(--paper);color:var(--ink)}
+.modal .mb{padding:18px 20px;max-height:70vh;overflow-y:auto}
+.modal .mf{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line)}
+
+/* Toast */
+.toasts{position:fixed;right:18px;bottom:18px;z-index:200;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--ink);color:#fff;padding:11px 16px;border-radius:10px;box-shadow:var(--ombre-fort);font-size:13.5px;display:flex;gap:9px;align-items:center;animation:slidein .2s ease}
+.toast.ok{background:var(--vert-fonce)} .toast.err{background:var(--rouge)} .toast.info{background:var(--bleu)}
+@keyframes slidein{from{transform:translateX(20px);opacity:0}to{transform:none;opacity:1}}
+
+.pilotes{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.pilote{background:var(--paper-2);border:1px solid var(--line-fort);border-radius:20px;padding:5px 13px;font-size:13px;font-weight:600;color:var(--ink-soft)}
+.pilote.actif{background:var(--vert);color:#fff;border-color:var(--vert)}
+.chart-box{position:relative;height:300px}
+.chart-box.sm{height:220px}
+.mini{font-size:12px;color:var(--muted)}
+.split-eco{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.filtre-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:14px}
+.filtre-bar label.champ{margin-bottom:0}
+.overlay-charge{position:fixed;inset:0;background:rgba(246,248,245,.85);z-index:300;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.spin{width:42px;height:42px;border:4px solid var(--line-fort);border-top-color:var(--vert);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:900px){
+  :root{--nav-w:0px}
+  .sidebar{transform:translateX(-100%);width:250px;flex-basis:250px;box-shadow:var(--ombre-fort)}
+  .sidebar.ouvert{transform:none}
+  .main{margin-left:0}
+  .burger{display:inline-flex;align-items:center;justify-content:center}
+  .content{padding:16px}
+  .split-eco{grid-template-columns:1fr}
+  .backdrop-nav{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:39;display:none}
+  .backdrop-nav.ouvert{display:block}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ================= BARRE LATÉRALE ================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">🐔</span>
+      <div><b id="brandNom">Gestion Avicole</b><small id="brandSous">Poules pondeuses</small></div>
+    </div>
+    <nav id="menu"><!-- boutons générés en JS --></nav>
+    <div class="pied">
+      <div id="piedStockage">Stockage local</div>
+      <div style="margin-top:3px">v1.0 · 100% hors-ligne</div>
+    </div>
+  </aside>
+  <div class="backdrop-nav" id="backdropNav"></div>
+
+  <!-- ================= CONTENU ================= -->
+  <div class="main">
+    <div class="topbar">
+      <button class="burger" id="burger" aria-label="Menu">☰</button>
+      <div>
+        <h1 id="pageTitre">Tableau de bord</h1>
+      </div>
+      <div class="lot-select" id="lotSelectBox">
+        <label for="lotSelect">Lot :</label>
+        <select id="lotSelect" style="width:auto"></select>
+      </div>
+    </div>
+    <div class="content" id="vue"><!-- vue courante --></div>
+  </div>
+</div>
+
+<!-- Modale générique -->
+<div class="modal-fond" id="modalFond">
+  <div class="modal" id="modalBox">
+    <div class="mh"><h3 id="modalTitre"></h3><button class="x" id="modalX">×</button></div>
+    <div class="mb" id="modalBody"></div>
+    <div class="mf" id="modalFooter"></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* ===========================================================================
+   1. COUCHE BASE DE DONNÉES (IndexedDB) — wrapper à promesses
+   =========================================================================== */
+const DB_NOM = 'GestionAvicole';
+const DB_VERSION = 1;
+// Description des "object stores" et de leurs index
+const STORES = {
+  lots:            {keyPath:'id', index:[]},
+  production:      {keyPath:'id', index:['date','lotId']},
+  mouvements:      {keyPath:'id', index:['date','lotId','type']},   // registre : entrées/sorties/réformes
+  traitements:     {keyPath:'id', index:['date','lotId']},
+  sanitaire:       {keyPath:'id', index:['type','lotId','dateEcheance']},
+  clients:         {keyPath:'id', index:['nom']},
+  factures:        {keyPath:'id', index:['date','clientId','numero']},
+  cotations:       {keyPath:'id', index:['date']},
+  fournisseurs:    {keyPath:'id', index:['nom']},
+  stocks:          {keyPath:'id', index:['categorie']},
+  mvtStock:        {keyPath:'id', index:['date','stockId']},
+  achats:          {keyPath:'id', index:['date','fournisseurId']},
+  charges:         {keyPath:'id', index:['date','lotId','categorie']},
+  parametres:      {keyPath:'cle', index:[]},
+};
+let _db = null;
+
+function ouvrirDB(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open(DB_NOM, DB_VERSION);
+    req.onupgradeneeded = e=>{
+      const db = e.target.result;
+      for(const [nom,def] of Object.entries(STORES)){
+        if(!db.objectStoreNames.contains(nom)){
+          const os = db.createObjectStore(nom, {keyPath:def.keyPath});
+          def.index.forEach(ix=>os.createIndex(ix, ix, {unique:false}));
+        }
+      }
+    };
+    req.onsuccess = e=>{ _db = e.target.result; resolve(_db); };
+    req.onerror = e=>reject(e.target.error);
+  });
+}
+function tx(store, mode='readonly'){ return _db.transaction(store, mode).objectStore(store); }
+function dbTout(store){ return new Promise((res,rej)=>{ const r=tx(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function dbGet(store,key){ return new Promise((res,rej)=>{ const r=tx(store).get(key); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function dbPut(store,obj){ return new Promise((res,rej)=>{ const r=tx(store,'readwrite').put(obj); r.onsuccess=()=>res(obj); r.onerror=()=>rej(r.error); }); }
+function dbDel(store,key){ return new Promise((res,rej)=>{ const r=tx(store,'readwrite').delete(key); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
+function dbClear(store){ return new Promise((res,rej)=>{ const r=tx(store,'readwrite').clear(); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+
+/* ===========================================================================
+   2. UTILITAIRES (dates FR, formatage, validation)
+   =========================================================================== */
+const MOIS_FR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function isoToFr(iso){ if(!iso) return ''; const [a,m,j]=iso.split('-'); return `${j}/${m}/${a}`; }
+function frToISO(fr){ if(!fr) return ''; const [j,m,a]=fr.split('/'); return `${a}-${m.padStart(2,'0')}-${j.padStart(2,'0')}`; }
+function isoToLong(iso){ if(!iso) return ''; const d=new Date(iso+'T00:00'); return `${d.getDate()} ${MOIS_FR[d.getMonth()]} ${d.getFullYear()}`; }
+function ajouterJours(iso,n){ const d=new Date(iso+'T00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function diffJours(iso1,iso2){ return Math.round((new Date(iso2+'T00:00')-new Date(iso1+'T00:00'))/86400000); }
+function semaineISO(iso){ const d=new Date(iso+'T00:00'); const j=(d.getDay()+6)%7; d.setDate(d.getDate()-j+3); const p=new Date(d.getFullYear(),0,4); const s=1+Math.round(((d-p)/86400000-3+((p.getDay()+6)%7))/7); return `${d.getFullYear()}-S${String(s).padStart(2,'0')}`; }
+function debutSemaine(iso){ const d=new Date(iso+'T00:00'); const j=(d.getDay()+6)%7; d.setDate(d.getDate()-j); return d.toISOString().slice(0,10); }
+function nbFmt(n,dec=0){ if(n===null||n===undefined||isNaN(n)) return '—'; return Number(n).toLocaleString('fr-FR',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function euro(n,dec=2){ if(n===null||n===undefined||isNaN(n)) return '—'; return Number(n).toLocaleString('fr-FR',{minimumFractionDigits:dec,maximumFractionDigits:dec})+' €'; }
+function pct(n,dec=1){ if(n===null||n===undefined||isNaN(n)) return '—'; return nbFmt(n,dec)+' %'; }
+function esc(s){ return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+// Validation : renvoie un message d'erreur ou null
+function valNombre(v,{min=null,max=null,champ='Valeur',entier=false}={}){
+  if(v==='' || v===null || v===undefined) return null; // vide autorisé (traité ailleurs)
+  const n=Number(v);
+  if(isNaN(n)) return `${champ} : nombre invalide`;
+  if(entier && !Number.isInteger(n)) return `${champ} : doit être un entier`;
+  if(min!==null && n<min) return `${champ} : ne peut pas être inférieur à ${min}`;
+  if(max!==null && n>max) return `${champ} : valeur aberrante (max ${max})`;
+  return null;
+}
+
+/* ===========================================================================
+   3. COURBE STANDARD DE PONTE — Hy-Line Brown (taux de ponte % par âge en semaines)
+   Valeurs de référence "objectif de performance" (hen-day), interpolées.
+   =========================================================================== */
+const COURBE_HYLINE = {
+  18:5, 19:26, 20:52, 21:73, 22:85, 23:91, 24:94, 25:95, 26:96,
+  27:96, 28:96.5, 29:96.5, 30:96.5, 31:96, 32:96, 33:95.5, 34:95, 35:95,
+  36:94.5, 37:94, 38:94, 39:93.5, 40:93, 41:93, 42:92.5, 43:92, 44:92,
+  45:91.5, 46:91, 47:91, 48:90.5, 49:90, 50:90, 52:89, 54:88, 56:87,
+  58:86, 60:85, 62:84, 64:83, 66:81, 68:80, 70:78, 72:77, 74:75,
+  76:74, 78:72, 80:70, 82:68, 84:66, 86:64, 88:62, 90:60, 95:55, 100:50
+};
+// Interpolation linéaire de la courbe standard pour un âge en semaines (peut être décimal)
+function standardPonte(semaines){
+  if(semaines<=18) return semaines<17?0:COURBE_HYLINE[18]*(semaines-17);
+  const cles = Object.keys(COURBE_HYLINE).map(Number).sort((a,b)=>a-b);
+  if(semaines>=cles[cles.length-1]) return COURBE_HYLINE[cles[cles.length-1]];
+  let bas=cles[0];
+  for(const c of cles){ if(c<=semaines) bas=c; else { const haut=c; const r=(semaines-bas)/(haut-bas); return COURBE_HYLINE[bas]+r*(COURBE_HYLINE[haut]-COURBE_HYLINE[bas]); } }
+  return COURBE_HYLINE[bas];
+}
+// Âge du lot (en semaines, décimal) à une date donnée
+function ageLotSemaines(lot, iso){
+  if(!lot) return null;
+  const j = diffJours(lot.dateMiseEnPlace, iso);
+  return (lot.ageMiseEnPlaceSemaines||18) + j/7;
+}
+
+/* ===========================================================================
+   4. PARAMÈTRES PAR DÉFAUT & OBJECTIFS
+   =========================================================================== */
+const PARAM_DEFAUT = {
+  exploitation:{
+    nom:"EARL Ferme des Pondeuses", adresse:"Lieu-dit La Basse-Cour\n86800 Sèvres-Anxaumont",
+    siret:"000 000 000 00000", tel:"05 49 00 00 00", email:"contact@ferme-pondeuses.fr",
+    numeroCheptel:"FR 86 000 000", codeElevage:0, souche:"Hy-Line Brown", tvaIntra:""
+  },
+  facturation:{ tvaTaux:5.5, prefixe:"F", format:"AAAA-NNN", prochainNum:1, mentionBas:"TVA acquittée sur les débits. Pénalités de retard : 3× taux légal. Indemnité forfaitaire de recouvrement : 40 €." },
+  objectifs:{
+    tauxPonteMin:88,      // % : sous ce seuil = alerte orange, -5pts = rouge
+    mortaliteHebdoMax:0.35, // % du cheptel / semaine
+    icMax:2.3,            // indice de consommation (g aliment / g œuf) ~ ; ici kg alim / kg œuf
+    ratioEauAlimentMax:2.2, // L eau / kg aliment (référence ~1.8-2.0)
+    consoAlimentPoule:0.120, // kg/poule/jour attendu
+    poidsOeufMoyen:63,   // g
+  },
+  seedFait:false
+};
+let PARAM = clone(PARAM_DEFAUT);
+async function chargerParametres(){
+  const rows = await dbTout('parametres');
+  rows.forEach(r=>{ PARAM[r.cle]=r.valeur; });
+  // compléter les clés manquantes
+  for(const [k,v] of Object.entries(PARAM_DEFAUT)){ if(PARAM[k]===undefined) PARAM[k]=clone(v); }
+}
+async function sauverParam(cle){ await dbPut('parametres',{cle,valeur:PARAM[cle]}); }
+
+/* ===========================================================================
+   5. ÉTAT GLOBAL & CACHE
+   =========================================================================== */
+const ETAT = { module:'dashboard', lotCourant:'tous', lots:[], alertes:[] };
+let CHARTS = {}; // instances Chart.js pour destruction
+
+function libLot(lotId){ if(lotId==='tous') return 'Tous les lots'; const l=ETAT.lots.find(x=>x.id===lotId); return l?l.nom:'—'; }
+function lotsActifs(){ return ETAT.lots.filter(l=>l.statut!=='terminé'); }
+function effectifLotADate(lot, iso, prods, mvts){
+  // Effectif présent à une date : les mouvements font foi (registre = source unique).
+  // - S'il existe au moins une entrée pour ce lot (mise en place enregistrée), on
+  //   part de 0 et on somme entrées − (sorties + mortalité + réformes) jusqu'à iso.
+  // - Sinon (lot sans mouvement d'entrée), on retombe sur l'effectif initial déclaré,
+  //   auquel on retranche les mouvements sortants. Évite le double comptage.
+  const lotMvts = (mvts||[]).filter(m=>m.lotId===lot.id);
+  const aEntree = lotMvts.some(m=>m.type==='entree');
+  let eff = aEntree ? 0 : (lot.effectifInitial||0);
+  lotMvts.filter(m=>m.date<=iso).forEach(m=>{
+    if(m.type==='entree') eff+=m.nombre; else eff-=m.nombre; // sortie, mortalité, réforme
+  });
+  return Math.max(0,eff);
+}
+
+/* ===========================================================================
+   6. NOTIFICATIONS (toasts) & MODALE
+   =========================================================================== */
+function toast(msg,type='ok',ms=3200){
+  const el=document.createElement('div'); el.className='toast '+type;
+  el.innerHTML=`<span>${type==='ok'?'✅':type==='err'?'⛔':'ℹ️'}</span><span>${esc(msg)}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, ms);
+}
+function ouvrirModal(titre, htmlBody, boutons){
+  document.getElementById('modalTitre').textContent=titre;
+  document.getElementById('modalBody').innerHTML=htmlBody;
+  const mf=document.getElementById('modalFooter'); mf.innerHTML='';
+  (boutons||[]).forEach(b=>{
+    const btn=document.createElement('button'); btn.className='btn '+(b.classe||''); btn.textContent=b.texte;
+    btn.onclick=b.action; mf.appendChild(btn);
+  });
+  document.getElementById('modalBox').className='modal'+(boutons&&boutons._large?' large':'');
+  document.getElementById('modalFond').classList.add('ouvert');
+}
+function setModalLarge(v){ document.getElementById('modalBox').className='modal'+(v?' large':''); }
+function fermerModal(){ document.getElementById('modalFond').classList.remove('ouvert'); }
+function confirmer(msg, onOui, {titre='Confirmation', txtOui='Confirmer', dang=true}={}){
+  ouvrirModal(titre, `<p style="font-size:15px">${msg}</p>`, [
+    {texte:'Annuler', classe:'sec', action:fermerModal},
+    {texte:txtOui, classe:dang?'dang':'', action:()=>{ fermerModal(); onOui(); }},
+  ]);
+}
+
+/* ===========================================================================
+   7. NAVIGATION / ROUTEUR
+   =========================================================================== */
+const MODULES = [
+  {id:'dashboard', nom:'Tableau de bord', ic:'📊'},
+  {id:'production', nom:'Saisie production', ic:'🥚'},
+  {id:'registre',  nom:"Registre d'élevage", ic:'📒'},
+  {id:'sanitaire', nom:'Suivi sanitaire', ic:'💉'},
+  {id:'commercial',nom:'Gestion commerciale', ic:'🧾'},
+  {id:'stocks',    nom:'Stocks & achats', ic:'📦'},
+  {id:'economie',  nom:'Indicateurs économiques', ic:'💶'},
+  {id:'sauvegarde',nom:'Export / Sauvegarde', ic:'💾'},
+  {id:'parametres',nom:'Paramètres', ic:'⚙️'},
+];
+function construireMenu(){
+  const menu=document.getElementById('menu'); menu.innerHTML='';
+  MODULES.forEach(m=>{
+    const b=document.createElement('button'); b.className='navbtn'+(m.id===ETAT.module?' actif':''); b.dataset.id=m.id;
+    b.innerHTML=`<span class="ic">${m.ic}</span><span>${m.nom}</span><span class="badge" data-badge="${m.id}" style="display:none"></span>`;
+    b.onclick=()=>aller(m.id);
+    menu.appendChild(b);
+  });
+}
+function majBadges(){
+  const nbAl = ETAT.alertes.filter(a=>a.niveau!=='v').length;
+  const bd = document.querySelector('[data-badge="dashboard"]');
+  if(bd){ if(nbAl>0){ bd.style.display=''; bd.textContent=nbAl; } else bd.style.display='none'; }
+}
+async function aller(module){
+  ETAT.module=module;
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('actif',b.dataset.id===module));
+  const m=MODULES.find(x=>x.id===module);
+  document.getElementById('pageTitre').textContent=m?m.nom:'';
+  // le sélecteur de lot n'est pertinent que pour certains modules
+  document.getElementById('lotSelectBox').style.display = ['dashboard','production','registre','sanitaire','economie'].includes(module)?'flex':'none';
+  fermerNavMobile();
+  // détruire les anciens graphiques
+  Object.values(CHARTS).forEach(c=>{ try{c.destroy();}catch(e){} }); CHARTS={};
+  const vue=document.getElementById('vue'); vue.innerHTML='<div class="vide"><span class="em">⏳</span>Chargement…</div>';
+  try{
+    switch(module){
+      case 'dashboard':   await renderDashboard(vue); break;
+      case 'production':  await renderProduction(vue); break;
+      case 'registre':    await renderRegistre(vue); break;
+      case 'sanitaire':   await renderSanitaire(vue); break;
+      case 'commercial':  await renderCommercial(vue); break;
+      case 'stocks':      await renderStocks(vue); break;
+      case 'economie':    await renderEconomie(vue); break;
+      case 'sauvegarde':  await renderSauvegarde(vue); break;
+      case 'parametres':  await renderParametres(vue); break;
+    }
+  }catch(err){ console.error(err); vue.innerHTML=`<div class="alerte r"><span class="ic">⛔</span><div>Erreur d'affichage du module.<br><small>${esc(err.message)}</small></div></div>`; }
+}
+function ouvrirNavMobile(){ document.getElementById('sidebar').classList.add('ouvert'); document.getElementById('backdropNav').classList.add('ouvert'); }
+function fermerNavMobile(){ document.getElementById('sidebar').classList.remove('ouvert'); document.getElementById('backdropNav').classList.remove('ouvert'); }
+
+/* Remplit le <select> de lots selon le module (option "tous" pour dashboard/registre) */
+function majSelectLot(avecTous=true){
+  const sel=document.getElementById('lotSelect'); sel.innerHTML='';
+  if(avecTous){ const o=document.createElement('option'); o.value='tous'; o.textContent='Tous les lots'; sel.appendChild(o); }
+  ETAT.lots.forEach(l=>{ const o=document.createElement('option'); o.value=l.id; o.textContent=l.nom+(l.statut==='terminé'?' (terminé)':''); sel.appendChild(o); });
+  if(!avecTous && ETAT.lotCourant==='tous' && ETAT.lots[0]) ETAT.lotCourant=ETAT.lots[0].id;
+  sel.value=ETAT.lotCourant;
+}
+
+/* ===========================================================================
+   8. CALCULS DE PRODUCTION (indicateurs)
+   =========================================================================== */
+// À partir d'un enregistrement de production + effectif présent ce jour-là
+function calculsProd(p, effectif){
+  const oeufs=+p.oeufsPondus||0, alim=+p.consoAliment||0, eau=+p.consoEau||0;
+  const tauxPonte = effectif>0 ? (oeufs/effectif)*100 : null;
+  const tauxMorta = effectif>0 ? ((+p.mortalite||0)/effectif)*100 : null;
+  const poidsOeuf = PARAM.objectifs.poidsOeufMoyen/1000; // kg/œuf
+  const masseOeuf = oeufs*poidsOeuf; // kg d'œufs produits
+  const ic = masseOeuf>0 ? alim/masseOeuf : null;         // kg aliment / kg œuf
+  const ratioEauAlim = alim>0 ? eau/alim : null;          // L / kg
+  const alimParPoule = effectif>0 ? (alim/effectif)*1000 : null; // g/poule
+  return {tauxPonte,tauxMorta,ic,ratioEauAlim,alimParPoule,masseOeuf,effectif};
+}
+
+/* ===========================================================================
+   9. DONNÉES DE DÉMONSTRATION (au premier lancement)
+   =========================================================================== */
+async function semerDemo(){
+  // 2 lots (Code 0 - Bio, Hy-Line Brown)
+  const lot1={id:uid(), nom:'Lot A — Bât. 1', batiment:'Bâtiment 1', souche:'Hy-Line Brown',
+    effectifInitial:12000, dateMiseEnPlace:ajouterJours(todayISO(),-210), ageMiseEnPlaceSemaines:18,
+    codeElevage:0, statut:'actif', notes:'Poulettes bio démarrées à 18 semaines.'};
+  const lot2={id:uid(), nom:'Lot B — Bât. 2', batiment:'Bâtiment 2', souche:'Hy-Line Brown',
+    effectifInitial:12000, dateMiseEnPlace:ajouterJours(todayISO(),-119), ageMiseEnPlaceSemaines:18,
+    codeElevage:0, statut:'actif', notes:'Deuxième bande, décalée d\'environ 13 semaines.'};
+  await dbPut('lots',lot1); await dbPut('lots',lot2);
+  // mouvement d'entrée (mise en place)
+  await dbPut('mouvements',{id:uid(),lotId:lot1.id,date:lot1.dateMiseEnPlace,type:'entree',nombre:12000,motif:'Mise en place poulettes',tiers:'Élevage de poulettes bio',remarques:''});
+  await dbPut('mouvements',{id:uid(),lotId:lot2.id,date:lot2.dateMiseEnPlace,type:'entree',nombre:12000,motif:'Mise en place poulettes',tiers:'Élevage de poulettes bio',remarques:''});
+
+  // Production quotidienne simulée pour chaque lot (des 90 derniers jours max, selon présence)
+  const rng=(a,b)=>a+Math.random()*(b-a);
+  for(const lot of [lot1,lot2]){
+    let effectif=lot.effectifInitial;
+    const debut = Math.min(90, Math.max(1, diffJours(lot.dateMiseEnPlace, todayISO())));
+    for(let d=debut; d>=1; d--){
+      const iso=ajouterJours(todayISO(),-d);
+      const age=ageLotSemaines(lot,iso);
+      // mortalité journalière ~ 0.02% + bruit
+      const morts=Math.max(0, Math.round(effectif*rng(0.0001,0.0004)));
+      effectif-=morts;
+      if(morts>0) await dbPut('mouvements',{id:uid(),lotId:lot.id,date:iso,type:'mortalite',nombre:morts,motif:'Mortalité naturelle',tiers:'',remarques:''});
+      const std=standardPonte(age);
+      const tx=Math.max(0, Math.min(99, std - rng(1.5,5.5) + (Math.random()<0.06? -rng(6,14):0)));
+      const oeufs=Math.round(effectif*tx/100);
+      const alim=Math.round(effectif*rng(0.115,0.125)*10)/10; // kg
+      const eau=Math.round(alim*rng(1.75,2.05));
+      await dbPut('production',{id:uid(),lotId:lot.id,date:iso,
+        oeufsPondus:oeufs, oeufsDeclasses:Math.round(oeufs*rng(0.01,0.03)),
+        mortalite:morts, consoAliment:alim, consoEau:eau,
+        tempMin:Math.round(rng(17,20)), tempMax:Math.round(rng(21,25)),
+        hygrometrie:Math.round(rng(55,68)), poidsMoyen:Math.round(rng(61,65)), remarques:''});
+    }
+  }
+  // Traitement vétérinaire d'exemple (avec délai d'attente)
+  await dbPut('traitements',{id:uid(),lotId:lot1.id,date:ajouterJours(todayISO(),-8),
+    produit:'Baycox (toltrazuril)',motif:'Coccidiose (prévention)',dose:'7 mg/kg',voie:'Eau de boisson',
+    dureeJours:2, delaiAttenteOeufsJours:0, veterinaire:'Dr Martin (cabinet vét. de Poitiers)',
+    ordonnance:'ORD-2026-014', remarques:'Conforme cahier des charges bio (dérogation vétérinaire).'});
+
+  // Suivi sanitaire : autocontrôle Salmonelles + vaccination + nettoyage
+  await dbPut('sanitaire',{id:uid(),type:'salmonelle',lotId:lot1.id,dateRealisation:ajouterJours(todayISO(),-45),
+    dateEcheance:ajouterJours(todayISO(),-45+105),resultat:'Négatif',laboratoire:'Labo Départemental 86',
+    reference:'SALM-2026-031',remarques:'Autocontrôle réglementaire (toutes les 15 semaines).'});
+  await dbPut('sanitaire',{id:uid(),type:'salmonelle',lotId:lot2.id,dateRealisation:ajouterJours(todayISO(),-20),
+    dateEcheance:ajouterJours(todayISO(),-20+105),resultat:'Négatif',laboratoire:'Labo Départemental 86',
+    reference:'SALM-2026-047',remarques:''});
+  await dbPut('sanitaire',{id:uid(),type:'vaccination',lotId:lot2.id,dateRealisation:ajouterJours(todayISO(),8),
+    dateEcheance:ajouterJours(todayISO(),8),resultat:'',produit:'Vaccin Newcastle (rappel)',
+    reference:'',remarques:'Rappel en eau de boisson.'});
+  await dbPut('sanitaire',{id:uid(),type:'nettoyage',lotId:lot1.id,dateRealisation:ajouterJours(todayISO(),-2),
+    dateEcheance:'',resultat:'Réalisé',produit:'Détergent alcalin + désinfectant virucide',
+    reference:'',remarques:'Nettoyage périphérie + nids.'});
+
+  // Clients
+  const c1={id:uid(),nom:'Centre de conditionnement Ovoval',type:'Centre de conditionnement',
+    adresse:'ZI des Œufs\n86000 Poitiers',siret:'111 222 333 00011',contact:'M. Dupuis',tel:'05 49 11 22 33',email:'achat@ovoval.fr',mentions:''};
+  const c2={id:uid(),nom:'Supermarché Coquard',type:'GMS',adresse:'Av. de la Gare\n86800 Saint-Julien',
+    siret:'444 555 666 00022',contact:'Rayon frais',tel:'05 49 44 55 66',email:'frais@coquard.fr',mentions:''};
+  const c3={id:uid(),nom:'Vente directe (marché)',type:'Vente directe',adresse:'',siret:'',contact:'',tel:'',email:'',mentions:''};
+  await dbPut('clients',c1); await dbPut('clients',c2); await dbPut('clients',c3);
+
+  // Cotations œufs (mercuriale) — prix indicatif au 100 œufs par calibre
+  const calibres=['Petit (S)','Moyen (M)','Gros (L)','Très gros (XL)'];
+  const basePrix={'Petit (S)':9.5,'Moyen (M)':11.2,'Gros (L)':12.4,'Très gros (XL)':12.9};
+  for(let w=6;w>=0;w--){ const iso=debutSemaine(ajouterJours(todayISO(),-w*7));
+    calibres.forEach(cal=>{ dbPut('cotations',{id:uid(),date:iso,calibre:cal,prix:Math.round((basePrix[cal]+rng(-0.4,0.5))*100)/100,source:'Mercuriale bio hebdo'}); });
+  }
+  // Facture d'exemple
+  const numFact=genNumeroFacture();
+  await dbPut('factures',{id:uid(),numero:numFact,type:'facture',clientId:c1.id,date:ajouterJours(todayISO(),-5),
+    statut:'emise', echeance:ajouterJours(todayISO(),25),
+    lignes:[{designation:'Œufs bio calibre M (plein air/bio, code 0)',quantite:32400,unite:'œuf',prixUnitaire:0.112,tva:5.5},
+            {designation:'Œufs bio calibre L (code 0)',quantite:14400,unite:'œuf',prixUnitaire:0.124,tva:5.5}],
+    notes:'Livraison semaine '+semaineISO(todayISO())});
+
+  // Fournisseurs + stocks + achats
+  const f1={id:uid(),nom:'Sanders Bio Ouest',type:'Aliment',contact:'Service commercial',tel:'02 99 00 00 00',email:'cmd@sanders-bio.fr',adresse:'35000 Rennes',produits:'Aliment ponte bio'};
+  const f2={id:uid(),nom:'Embal\'Œuf',type:'Emballage',contact:'',tel:'02 41 00 00 00',email:'contact@embaloeuf.fr',adresse:'49000 Angers',produits:'Alvéoles, boîtes 6/10'};
+  await dbPut('fournisseurs',f1); await dbPut('fournisseurs',f2);
+  const s1={id:uid(),categorie:'Aliment',designation:'Aliment ponte bio (vrac)',unite:'kg',quantite:8500,seuilAlerte:4000,prixUnitaire:0.52,fournisseurId:f1.id};
+  const s2={id:uid(),categorie:'Emballage',designation:'Alvéoles 30 œufs',unite:'unité',quantite:1200,seuilAlerte:2000,prixUnitaire:0.09,fournisseurId:f2.id};
+  const s3={id:uid(),categorie:'Emballage',designation:'Boîtes 6 œufs (bio)',unite:'unité',quantite:9500,seuilAlerte:3000,prixUnitaire:0.11,fournisseurId:f2.id};
+  await dbPut('stocks',s1); await dbPut('stocks',s2); await dbPut('stocks',s3);
+  await dbPut('achats',{id:uid(),fournisseurId:f1.id,date:ajouterJours(todayISO(),-12),numero:'BL-SB-3021',
+    lignes:[{stockId:s1.id,designation:'Aliment ponte bio vrac',quantite:24000,unite:'kg',prixUnitaire:0.52,tva:10}],
+    notes:'Livraison silo'});
+  // Charges (pour coût de revient) — hors aliment (l'aliment est calculé via la conso)
+  await dbPut('charges',{id:uid(),lotId:'tous',date:ajouterJours(todayISO(),-30),categorie:'Énergie',libelle:'Électricité (ventilation, éclairage)',montant:1450});
+  await dbPut('charges',{id:uid(),lotId:'tous',date:ajouterJours(todayISO(),-30),categorie:'Main d\'œuvre',libelle:'Salaires + charges',montant:5200});
+  await dbPut('charges',{id:uid(),lotId:'tous',date:ajouterJours(todayISO(),-30),categorie:'Vétérinaire',libelle:'Suivi + traitements',montant:380});
+  await dbPut('charges',{id:uid(),lotId:'tous',date:ajouterJours(todayISO(),-30),categorie:'Emballage',libelle:'Consommables conditionnement',montant:640});
+
+  PARAM.seedFait=true; await sauverParam('seedFait');
+}
+function genNumeroFacture(){
+  const f=PARAM.facturation; const n=f.prochainNum||1;
+  const an=new Date().getFullYear();
+  const num = f.prefixe + f.format.replace('AAAA',an).replace('NNN',String(n).padStart(3,'0'));
+  return num;
+}
+
+/* ===========================================================================
+   10. MODULE : SAISIE PRODUCTION QUOTIDIENNE  (priorité 1)
+   =========================================================================== */
+async function renderProduction(vue){
+  majSelectLot(false); // pas de "tous" pour la saisie
+  if(ETAT.lotCourant==='tous') ETAT.lotCourant = (lotsActifs()[0]||ETAT.lots[0])?.id;
+  document.getElementById('lotSelect').value=ETAT.lotCourant;
+  if(!ETAT.lots.length){ vue.innerHTML=vueAucunLot(); return; }
+  const lot=ETAT.lots.find(l=>l.id===ETAT.lotCourant);
+  const [prods, mvts] = await Promise.all([dbTout('production'), dbTout('mouvements')]);
+  const prodLot = prods.filter(p=>p.lotId===lot.id).sort((a,b)=>b.date.localeCompare(a.date));
+  const effectifJour = effectifLotADate(lot, todayISO(), prods, mvts);
+
+  vue.innerHTML = `
+    <div class="grid c2" style="grid-template-columns:minmax(340px,420px) 1fr;align-items:start">
+      <div class="card pad" id="formCard">
+        <div class="section-titre"><span class="ic">🥚</span><h2>Saisie du jour</h2></div>
+        <div id="formProdZone"></div>
+      </div>
+      <div>
+        <div class="grid kpi" id="prodKpi" style="margin-bottom:16px"></div>
+        <div class="card pad">
+          <div class="section-titre"><span class="ic">📅</span><h2>Historique — ${esc(lot.nom)}</h2></div>
+          <div class="barre-actions">
+            <span class="mini">${prodLot.length} enregistrement(s)</span>
+            <span class="spacer"></span>
+            <button class="btn sm sec" onclick="exportProdExcel()">⬇️ Excel</button>
+          </div>
+          <div class="tbl-wrap" id="histoProd"></div>
+        </div>
+      </div>
+    </div>`;
+  renderFormProd(lot, effectifJour, prodLot);
+  renderHistoProd(lot, prodLot, prods, mvts);
+  renderKpiProdRapide(lot, prodLot, prods, mvts);
+
+  document.getElementById('lotSelect').onchange=e=>{ ETAT.lotCourant=e.target.value; renderProduction(vue); };
+}
+
+function renderFormProd(lot, effectif, prodLot, edit){
+  const p = edit || {};
+  const dateVal = p.date || todayISO();
+  const existe = !edit && prodLot.find(x=>x.date===dateVal);
+  const zone=document.getElementById('formProdZone');
+  zone.innerHTML=`
+    <div class="mini" style="margin-bottom:8px">Effectif présent estimé : <b>${nbFmt(effectif)}</b> poules · Âge ~ <b>${nbFmt(ageLotSemaines(lot,dateVal),1)}</b> sem.</div>
+    <label class="champ"><span>Date *</span><input type="date" id="pf_date" value="${dateVal}" max="${todayISO()}"></label>
+    <div id="pf_existeAlerte"></div>
+    <div class="form-grid">
+      <label class="champ"><span>Œufs pondus *</span><input type="number" id="pf_oeufs" min="0" max="${effectif+200}" step="1" value="${p.oeufsPondus??''}" placeholder="ex. 11 200"></label>
+      <label class="champ"><span>Œufs déclassés/cassés</span><input type="number" id="pf_decl" min="0" step="1" value="${p.oeufsDeclasses??''}" placeholder="ex. 180"></label>
+      <label class="champ"><span>Mortalité (nb) *</span><input type="number" id="pf_morta" min="0" max="${Math.max(50,Math.round(effectif*0.1))}" step="1" value="${p.mortalite??''}" placeholder="ex. 3"></label>
+      <label class="champ"><span>Poids moyen œuf (g)</span><input type="number" id="pf_poids" min="30" max="90" step="0.1" value="${p.poidsMoyen??''}" placeholder="ex. 63"></label>
+      <label class="champ"><span>Conso aliment (kg) *</span><input type="number" id="pf_alim" min="0" max="${Math.round(effectif*0.25)}" step="0.1" value="${p.consoAliment??''}" placeholder="ex. 1 440"></label>
+      <label class="champ"><span>Conso eau (L)</span><input type="number" id="pf_eau" min="0" step="1" value="${p.consoEau??''}" placeholder="ex. 2 750"></label>
+      <label class="champ"><span>Temp. min (°C)</span><input type="number" id="pf_tmin" min="-5" max="45" step="0.5" value="${p.tempMin??''}"></label>
+      <label class="champ"><span>Temp. max (°C)</span><input type="number" id="pf_tmax" min="-5" max="45" step="0.5" value="${p.tempMax??''}"></label>
+      <label class="champ"><span>Hygrométrie (%)</span><input type="number" id="pf_hygro" min="0" max="100" step="1" value="${p.hygrometrie??''}"></label>
+    </div>
+    <label class="champ"><span>Remarques</span><textarea id="pf_rem" placeholder="Observations, événements…">${esc(p.remarques||'')}</textarea></label>
+    <div class="calc-live" id="pf_calc"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn" id="pf_save">${edit?'💾 Enregistrer les modifications':'✅ Enregistrer la saisie'}</button>
+      ${edit?'<button class="btn sec" onclick="renderProduction(document.getElementById(\'vue\'))">Annuler</button>':''}
+    </div>`;
+  const champs=['pf_oeufs','pf_decl','pf_morta','pf_alim','pf_eau','pf_poids','pf_date'];
+  const recalc=()=>majCalcLive(lot, prodLot);
+  champs.forEach(id=>document.getElementById(id).addEventListener('input',recalc));
+  document.getElementById('pf_date').addEventListener('change',()=>{
+    const d=document.getElementById('pf_date').value;
+    const ex=prodLot.find(x=>x.date===d && (!edit||x.id!==edit.id));
+    document.getElementById('pf_existeAlerte').innerHTML = ex?`<div class="alerte o"><span class="ic">⚠️</span><div>Une saisie existe déjà pour le <b>${isoToFr(d)}</b>. L'enregistrement la remplacera.</div></div>`:'';
+  });
+  document.getElementById('pf_save').onclick=()=>sauverProd(lot, edit);
+  recalc();
+}
+function majCalcLive(lot, prodLot){
+  const g=id=>parseFloat(document.getElementById(id).value);
+  const iso=document.getElementById('pf_date').value||todayISO();
+  // effectif estimé à cette date (approché via effectif courant du lot)
+  const eff = ETAT._effProd || lot.effectifInitial;
+  const p={oeufsPondus:g('pf_oeufs')||0,mortalite:g('pf_morta')||0,consoAliment:g('pf_alim')||0,consoEau:g('pf_eau')||0};
+  const c=calculsProd(p, eff);
+  const age=ageLotSemaines(lot,iso); const std=standardPonte(age);
+  const box=document.getElementById('pf_calc');
+  box.innerHTML=`
+    <div class="it">Taux de ponte<b>${pct(c.tauxPonte)}</b><span class="mini">std ${pct(std)}</span></div>
+    <div class="it">Taux mortalité (jour)<b>${pct(c.tauxMorta,3)}</b></div>
+    <div class="it">Indice conso (kg/kg)<b>${nbFmt(c.ic,2)}</b></div>
+    <div class="it">Ratio eau/aliment<b>${nbFmt(c.ratioEauAlim,2)}</b></div>
+    <div class="it">Aliment/poule<b>${nbFmt(c.alimParPoule,0)} g</b></div>`;
+}
+async function sauverProd(lot, edit){
+  const g=id=>document.getElementById(id).value;
+  const iso=g('pf_date');
+  // validations
+  const errs=[];
+  if(!iso) errs.push('La date est obligatoire.');
+  if(iso>todayISO()) errs.push('La date ne peut pas être dans le futur.');
+  const oeufs=g('pf_oeufs'); if(oeufs==='') errs.push('Le nombre d\'œufs est obligatoire.');
+  const alim=g('pf_alim'); if(alim==='') errs.push('La conso d\'aliment est obligatoire.');
+  const morta=g('pf_morta'); if(morta==='') errs.push('La mortalité est obligatoire (mettre 0 si aucune).');
+  [['pf_oeufs',{min:0,max:lot.effectifInitial+500,champ:'Œufs',entier:true}],
+   ['pf_decl',{min:0,champ:'Déclassés',entier:true}],
+   ['pf_morta',{min:0,max:Math.round(lot.effectifInitial*0.2),champ:'Mortalité',entier:true}],
+   ['pf_alim',{min:0,max:Math.round(lot.effectifInitial*0.3),champ:'Aliment'}],
+   ['pf_eau',{min:0,max:Math.round(lot.effectifInitial*0.6),champ:'Eau'}],
+   ['pf_poids',{min:30,max:90,champ:'Poids œuf'}],
+   ['pf_tmin',{min:-5,max:45,champ:'Temp min'}],['pf_tmax',{min:-5,max:45,champ:'Temp max'}],
+   ['pf_hygro',{min:0,max:100,champ:'Hygrométrie'}]
+  ].forEach(([id,opt])=>{ const e=valNombre(g(id),opt); if(e) errs.push(e); });
+  if(errs.length){ toast(errs[0],'err',4200); return; }
+
+  const prods=await dbTout('production');
+  const existant = prods.find(p=>p.lotId===lot.id && p.date===iso && (!edit||p.id!==edit.id));
+  const obj={
+    id: edit?edit.id:(existant?existant.id:uid()),
+    lotId:lot.id, date:iso,
+    oeufsPondus:+oeufs, oeufsDeclasses:g('pf_decl')===''?0:+g('pf_decl'),
+    mortalite:+morta, consoAliment:+alim, consoEau:g('pf_eau')===''?null:+g('pf_eau'),
+    poidsMoyen:g('pf_poids')===''?null:+g('pf_poids'),
+    tempMin:g('pf_tmin')===''?null:+g('pf_tmin'), tempMax:g('pf_tmax')===''?null:+g('pf_tmax'),
+    hygrometrie:g('pf_hygro')===''?null:+g('pf_hygro'), remarques:g('pf_rem'),
+  };
+  await dbPut('production',obj);
+  // Synchroniser la mortalité dans le registre (mouvements) : on remplace le mvt "mortalité" du jour lié à la production
+  const mvts=await dbTout('mouvements');
+  const mortaMvt=mvts.find(m=>m.lotId===lot.id && m.date===iso && m.type==='mortalite' && m.origine==='production');
+  if(obj.mortalite>0){
+    const mv={id:mortaMvt?mortaMvt.id:uid(),lotId:lot.id,date:iso,type:'mortalite',nombre:obj.mortalite,motif:'Mortalité (saisie production)',tiers:'',origine:'production',remarques:''};
+    await dbPut('mouvements',mv);
+  } else if(mortaMvt){ await dbDel('mouvements',mortaMvt.id); }
+
+  toast(edit?'Saisie modifiée.':'Saisie enregistrée ✔','ok');
+  await calculerAlertes();
+  renderProduction(document.getElementById('vue'));
+}
+async function renderKpiProdRapide(lot, prodLot, prods, mvts){
+  const box=document.getElementById('prodKpi'); if(!box) return;
+  const dernier=prodLot[0];
+  if(!dernier){ box.innerHTML=`<div class="kpi-card"><div class="lib">Aucune donnée</div><div class="val">—</div></div>`; return; }
+  const eff=effectifLotADate(lot,dernier.date,prods,mvts);
+  ETAT._effProd=effectifLotADate(lot,todayISO(),prods,mvts);
+  const c=calculsProd(dernier,eff);
+  const std=standardPonte(ageLotSemaines(lot,dernier.date));
+  const ecart=c.tauxPonte-std;
+  const cls=c.tauxPonte>=PARAM.objectifs.tauxPonteMin?'v':(c.tauxPonte>=PARAM.objectifs.tauxPonteMin-5?'o':'r');
+  box.innerHTML=`
+    <div class="kpi-card ${cls}"><div class="lib">🥚 Taux de ponte (${isoToFr(dernier.date)})</div><div class="val">${pct(c.tauxPonte)}</div><div class="cmp ${ecart>=0?'up':'down'}">${ecart>=0?'▲':'▼'} ${nbFmt(Math.abs(ecart),1)} pts vs std ${pct(std)}</div></div>
+    <div class="kpi-card b"><div class="lib">🐔 Effectif présent</div><div class="val">${nbFmt(eff)}</div><div class="cmp">sur ${nbFmt(lot.effectifInitial)} mis en place</div></div>
+    <div class="kpi-card ${c.ic&&c.ic<=PARAM.objectifs.icMax?'v':'o'}"><div class="lib">🌾 Indice conso</div><div class="val">${nbFmt(c.ic,2)}<small> kg/kg</small></div><div class="cmp">aliment ${nbFmt(c.alimParPoule,0)} g/poule</div></div>`;
+}
+function renderHistoProd(lot, prodLot, prods, mvts){
+  const wrap=document.getElementById('histoProd');
+  if(!prodLot.length){ wrap.innerHTML=`<div class="vide"><span class="em">🗒️</span>Aucune saisie pour ce lot.</div>`; return; }
+  let rows='';
+  prodLot.slice(0,60).forEach(p=>{
+    const eff=effectifLotADate(lot,p.date,prods,mvts);
+    const c=calculsProd(p,eff);
+    const std=standardPonte(ageLotSemaines(lot,p.date));
+    const clsPonte=c.tauxPonte>=std-3?'v':(c.tauxPonte>=std-8?'o':'r');
+    rows+=`<tr>
+      <td>${isoToFr(p.date)}</td>
+      <td class="num">${nbFmt(p.oeufsPondus)}</td>
+      <td class="num"><span class="tag ${clsPonte}">${pct(c.tauxPonte)}</span></td>
+      <td class="num">${nbFmt(p.mortalite)}</td>
+      <td class="num">${nbFmt(p.consoAliment,1)}</td>
+      <td class="num">${p.consoEau!=null?nbFmt(p.consoEau):'—'}</td>
+      <td class="num">${nbFmt(c.ic,2)}</td>
+      <td class="num">${p.tempMin!=null?nbFmt(p.tempMin,0)+'/'+nbFmt(p.tempMax,0)+'°':'—'}</td>
+      <td class="act">
+        <button class="btn xs sec" onclick='editProd("${p.id}")'>✏️</button>
+        <button class="btn xs dang" onclick='supprProd("${p.id}")'>🗑️</button>
+      </td></tr>`;
+  });
+  wrap.innerHTML=`<table class="data"><thead><tr>
+    <th>Date</th><th class="num">Œufs</th><th class="num">Ponte</th><th class="num">Morts</th>
+    <th class="num">Alim (kg)</th><th class="num">Eau (L)</th><th class="num">IC</th><th class="num">T° m/M</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+async function editProd(id){
+  const p=await dbGet('production',id); const lot=ETAT.lots.find(l=>l.id===p.lotId);
+  const [prods,mvts]=await Promise.all([dbTout('production'),dbTout('mouvements')]);
+  const prodLot=prods.filter(x=>x.lotId===lot.id).sort((a,b)=>b.date.localeCompare(a.date));
+  ETAT._effProd=effectifLotADate(lot,p.date,prods,mvts);
+  renderFormProd(lot, ETAT._effProd, prodLot, p);
+  document.getElementById('formCard').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function supprProd(id){
+  confirmer('Supprimer cette saisie de production ?', async()=>{
+    const p=await dbGet('production',id);
+    await dbDel('production',id);
+    // supprimer le mouvement de mortalité lié
+    const mvts=await dbTout('mouvements');
+    const m=mvts.find(x=>x.lotId===p.lotId && x.date===p.date && x.type==='mortalite' && x.origine==='production');
+    if(m) await dbDel('mouvements',m.id);
+    toast('Saisie supprimée.','ok'); await calculerAlertes();
+    renderProduction(document.getElementById('vue'));
+  });
+}
+async function exportProdExcel(){
+  const lot=ETAT.lots.find(l=>l.id===ETAT.lotCourant);
+  const [prods,mvts]=await Promise.all([dbTout('production'),dbTout('mouvements')]);
+  const prodLot=prods.filter(p=>p.lotId===lot.id).sort((a,b)=>a.date.localeCompare(b.date));
+  const data=prodLot.map(p=>{ const eff=effectifLotADate(lot,p.date,prods,mvts); const c=calculsProd(p,eff);
+    return {Date:isoToFr(p.date),Effectif:eff,'Œufs pondus':p.oeufsPondus,'Œufs déclassés':p.oeufsDeclasses||0,
+      'Taux ponte %':c.tauxPonte?+c.tauxPonte.toFixed(1):'',Mortalité:p.mortalite,
+      'Aliment kg':p.consoAliment,'Eau L':p.consoEau,'Indice conso':c.ic?+c.ic.toFixed(2):'',
+      'Ratio eau/alim':c.ratioEauAlim?+c.ratioEauAlim.toFixed(2):'','Poids œuf g':p.poidsMoyen,
+      'T min':p.tempMin,'T max':p.tempMax,'Hygro %':p.hygrometrie,Remarques:p.remarques};
+  });
+  exporterExcel(data, 'Production_'+lot.nom.replace(/\W+/g,'_'), 'Production');
+}
+
+/* Vue d'invite si aucun lot */
+function vueAucunLot(){
+  return `<div class="card pad"><div class="vide"><span class="em">🐔</span>
+    Aucun lot enregistré.<br>Créez d'abord un lot dans le <a href="#" onclick="aller('registre');return false">Registre d'élevage</a>.
+    <div style="margin-top:14px"><button class="btn" onclick="aller('registre')">➕ Créer un lot</button></div></div></div>`;
+}
+
+/* ===========================================================================
+   11. MODULE : TABLEAU DE BORD  (priorité 2)
+   =========================================================================== */
+async function renderDashboard(vue){
+  majSelectLot(true);
+  document.getElementById('lotSelect').value=ETAT.lotCourant;
+  if(!ETAT.lots.length){ vue.innerHTML=vueAucunLot(); return; }
+  const [prods,mvts]=await Promise.all([dbTout('production'),dbTout('mouvements')]);
+  const lotsSel = ETAT.lotCourant==='tous'? ETAT.lots : ETAT.lots.filter(l=>l.id===ETAT.lotCourant);
+
+  // Agrégats du jour le plus récent avec données
+  const toutesDates=[...new Set(prods.map(p=>p.date))].sort();
+  const dJour = toutesDates[toutesDates.length-1] || todayISO();
+
+  // Cumul du jour
+  let oeufsJour=0, mortaJour=0, alimJour=0, eauJour=0, effTot=0, oeufsAttendus=0;
+  lotsSel.forEach(lot=>{
+    const pj=prods.find(p=>p.lotId===lot.id && p.date===dJour);
+    const eff=effectifLotADate(lot,dJour,prods,mvts); effTot+=eff;
+    if(pj){ oeufsJour+=pj.oeufsPondus||0; mortaJour+=pj.mortalite||0; alimJour+=pj.consoAliment||0; eauJour+=pj.consoEau||0; }
+    oeufsAttendus += eff*standardPonte(ageLotSemaines(lot,dJour))/100;
+  });
+  const tauxPonteJour = effTot>0? oeufsJour/effTot*100 : null;
+  const stdJour = effTot>0? oeufsAttendus/effTot*100 : null;
+
+  // Mortalité semaine (7 derniers jours)
+  const d7=ajouterJours(dJour,-6);
+  let mortaSem=0, effSemMoy=0;
+  lotsSel.forEach(lot=>{ mortaSem += mvts.filter(m=>m.lotId===lot.id && m.type==='mortalite' && m.date>=d7 && m.date<=dJour).reduce((s,m)=>s+m.nombre,0);
+    effSemMoy += effectifLotADate(lot,d7,prods,mvts); });
+  const tauxMortaSem = effSemMoy>0? mortaSem/effSemMoy*100 : null;
+
+  // Conso moyenne semaine
+  const prodsSem = prods.filter(p=>lotsSel.some(l=>l.id===p.lotId) && p.date>=d7 && p.date<=dJour);
+  const alimSem=prodsSem.reduce((s,p)=>s+(p.consoAliment||0),0);
+  const eauSem=prodsSem.reduce((s,p)=>s+(p.consoEau||0),0);
+  const ratioEauAlim = alimSem>0? eauSem/alimSem : null;
+
+  await calculerAlertes();
+
+  const kpi=(cls,ic,lib,val,cmp)=>`<div class="kpi-card ${cls}"><div class="lib">${ic} ${lib}</div><div class="val">${val}</div><div class="cmp">${cmp}</div></div>`;
+  const clsPonte = tauxPonteJour==null?'':(tauxPonteJour>=PARAM.objectifs.tauxPonteMin?'v':tauxPonteJour>=PARAM.objectifs.tauxPonteMin-5?'o':'r');
+  const clsMorta = tauxMortaSem==null?'':(tauxMortaSem<=PARAM.objectifs.mortaliteHebdoMax?'v':tauxMortaSem<=PARAM.objectifs.mortaliteHebdoMax*1.8?'o':'r');
+  const clsEau = ratioEauAlim==null?'':(ratioEauAlim<=PARAM.objectifs.ratioEauAlimentMax?'v':'o');
+
+  vue.innerHTML=`
+    <div id="zoneAlertes"></div>
+    <div class="grid kpi" style="margin-bottom:18px">
+      ${kpi(clsPonte,'🥚','Taux de ponte du jour', pct(tauxPonteJour), `${isoToFr(dJour)} · std ${pct(stdJour)} · ${nbFmt(oeufsJour)} œufs`)}
+      ${kpi(clsMorta,'📉','Mortalité (7 j)', pct(tauxMortaSem,2), `${nbFmt(mortaSem)} sujets · objectif < ${pct(PARAM.objectifs.mortaliteHebdoMax,2)}`)}
+      ${kpi('b','🌾','Aliment du jour', nbFmt(alimJour,0)+' kg', `${nbFmt(effTot>0?alimJour/effTot*1000:null,0)} g/poule`)}
+      ${kpi(clsEau,'💧','Ratio eau/aliment (7j)', nbFmt(ratioEauAlim,2), `${nbFmt(eauJour,0)} L bus aujourd'hui`)}
+      ${kpi('b','🐔','Cheptel présent', nbFmt(effTot), `${lotsSel.length} lot(s) suivi(s)`)}
+    </div>
+    <div class="grid c2" style="align-items:start">
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">📈</span><h2>Courbe de ponte — 30 derniers jours vs standard Hy-Line</h2></div>
+        <div class="chart-box"><canvas id="chPonte"></canvas></div>
+      </div>
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">🌾</span><h2>Consommation aliment & eau (14 j)</h2></div>
+        <div class="chart-box"><canvas id="chConso"></canvas></div>
+      </div>
+    </div>
+    <div class="grid c2" style="align-items:start;margin-top:16px">
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">🏠</span><h2>Synthèse par lot</h2></div>
+        <div class="tbl-wrap" id="synthLots"></div>
+      </div>
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">🔔</span><h2>Échéances & rappels</h2></div>
+        <div id="echeancesBox"></div>
+      </div>
+    </div>`;
+
+  afficherAlertes(document.getElementById('zoneAlertes'));
+  renderSyntheseLots(lotsSel, prods, mvts, dJour);
+  await renderEcheancesDash();
+  dessinerCourbePonte(lotsSel, prods, mvts, dJour);
+  dessinerConso(lotsSel, prods, dJour);
+
+  document.getElementById('lotSelect').onchange=e=>{ ETAT.lotCourant=e.target.value; renderDashboard(vue); };
+}
+
+function renderSyntheseLots(lots, prods, mvts, dJour){
+  let rows='';
+  lots.forEach(lot=>{
+    const eff=effectifLotADate(lot,dJour,prods,mvts);
+    const pj=prods.filter(p=>p.lotId===lot.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const age=ageLotSemaines(lot,dJour);
+    const c=pj?calculsProd(pj,effectifLotADate(lot,pj.date,prods,mvts)):null;
+    const std=standardPonte(age);
+    const tauxMortaCumul = lot.effectifInitial>0? (lot.effectifInitial-eff)/lot.effectifInitial*100:0;
+    const clsPonte=!c?'g':(c.tauxPonte>=std-3?'v':c.tauxPonte>=std-8?'o':'r');
+    rows+=`<tr>
+      <td><b>${esc(lot.nom)}</b><br><span class="mini">${esc(lot.batiment||'')}</span></td>
+      <td class="num">${nbFmt(age,0)} sem</td>
+      <td class="num">${nbFmt(eff)}</td>
+      <td class="num">${c?`<span class="tag ${clsPonte}">${pct(c.tauxPonte)}</span>`:'<span class="tag g">—</span>'}</td>
+      <td class="num">${pct(tauxMortaCumul,2)}</td>
+      <td class="num">${c?nbFmt(c.ic,2):'—'}</td>
+    </tr>`;
+  });
+  document.getElementById('synthLots').innerHTML=`<table class="data"><thead><tr>
+    <th>Lot</th><th class="num">Âge</th><th class="num">Présents</th><th class="num">Ponte</th><th class="num">Morta cumul</th><th class="num">IC</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function renderEcheancesDash(){
+  const box=document.getElementById('echeancesBox');
+  const san=await dbTout('sanitaire');
+  const auj=todayISO();
+  const items=[];
+  san.filter(s=>s.dateEcheance).forEach(s=>{
+    const j=diffJours(auj,s.dateEcheance);
+    if(j<=30){ items.push({date:s.dateEcheance,j,txt:`${libTypeSanitaire(s.type)} — ${libLot(s.lotId)}`,ref:s.reference||s.produit||''}); }
+  });
+  // traitements : fin de délai d'attente
+  const trs=await dbTout('traitements');
+  trs.forEach(t=>{ const fin=finDelaiAttente(t); const j=diffJours(auj,fin);
+    if(j>=-2 && j<=15) items.push({date:fin,j,txt:`Fin délai d'attente œufs — ${esc(t.produit)} (${libLot(t.lotId)})`,ref:''}); });
+  items.sort((a,b)=>a.date.localeCompare(b.date));
+  if(!items.length){ box.innerHTML=`<div class="vide"><span class="em">✅</span>Aucune échéance dans les 30 jours.</div>`; return; }
+  box.innerHTML=items.slice(0,8).map(it=>{
+    const cls=it.j<0?'r':it.j<=7?'o':'b';
+    const quand=it.j<0?`en retard de ${-it.j} j`:it.j===0?"aujourd'hui":`dans ${it.j} j`;
+    return `<div class="alerte ${cls}"><span class="ic">📌</span><div><b>${esc(it.txt)}</b><br><span class="mini">${isoToFr(it.date)} — ${quand}${it.ref?' · '+esc(it.ref):''}</span></div></div>`;
+  }).join('');
+}
+
+function dessinerCourbePonte(lots, prods, mvts, dJour){
+  if(typeof Chart==='undefined'){ document.getElementById('chPonte').parentElement.innerHTML='<div class="vide mini">Graphiques indisponibles hors-ligne.</div>'; return; }
+  const jours=[]; for(let i=29;i>=0;i--) jours.push(ajouterJours(dJour,-i));
+  const reel=[], std=[];
+  jours.forEach(iso=>{
+    let oeufs=0, eff=0, att=0;
+    lots.forEach(lot=>{ const pj=prods.find(p=>p.lotId===lot.id && p.date===iso); const e=effectifLotADate(lot,iso,prods,mvts);
+      if(pj){ oeufs+=pj.oeufsPondus; eff+=e; att+=e*standardPonte(ageLotSemaines(lot,iso))/100; } });
+    reel.push(eff>0? +(oeufs/eff*100).toFixed(1):null);
+    std.push(eff>0? +(att/eff*100).toFixed(1):null);
+  });
+  CHARTS.ponte=new Chart(document.getElementById('chPonte'),{type:'line',
+    data:{labels:jours.map(isoToFr),datasets:[
+      {label:'Ponte réelle',data:reel,borderColor:'#1f7a4d',backgroundColor:'rgba(31,122,77,.12)',fill:true,tension:.3,spanGaps:true,pointRadius:2},
+      {label:'Standard Hy-Line',data:std,borderColor:'#e08b1e',borderDash:[6,4],fill:false,tension:.3,spanGaps:true,pointRadius:0}
+    ]},
+    options:optChart({y:{min:0,max:100,ticks:{callback:v=>v+'%'}}})
+  });
+}
+function dessinerConso(lots, prods, dJour){
+  if(typeof Chart==='undefined'){ document.getElementById('chConso').parentElement.innerHTML='<div class="vide mini">Graphiques indisponibles hors-ligne.</div>'; return; }
+  const jours=[]; for(let i=13;i>=0;i--) jours.push(ajouterJours(dJour,-i));
+  const alim=[], eau=[];
+  jours.forEach(iso=>{ let a=0,e=0,ok=false;
+    lots.forEach(lot=>{ const pj=prods.find(p=>p.lotId===lot.id && p.date===iso); if(pj){ a+=pj.consoAliment||0; e+=pj.consoEau||0; ok=true; } });
+    alim.push(ok?Math.round(a):null); eau.push(ok?Math.round(e):null);
+  });
+  CHARTS.conso=new Chart(document.getElementById('chConso'),{type:'bar',
+    data:{labels:jours.map(isoToFr),datasets:[
+      {label:'Aliment (kg)',data:alim,backgroundColor:'#c9971f',yAxisID:'y'},
+      {type:'line',label:'Eau (L)',data:eau,borderColor:'#2b7bb9',backgroundColor:'rgba(43,123,185,.1)',tension:.3,yAxisID:'y1',pointRadius:2}
+    ]},
+    options:optChart({y:{position:'left',title:{display:true,text:'kg'}},y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'L'}}})
+  });
+}
+function optChart(scales){
+  return {responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},
+    scales:Object.assign({x:{ticks:{maxTicksLimit:10,font:{size:10}}}},scales)};
+}
+
+/* ===========================================================================
+   12. ALERTES AUTOMATIQUES
+   =========================================================================== */
+async function calculerAlertes(){
+  const [prods,mvts,san,trs,stocks]=await Promise.all([dbTout('production'),dbTout('mouvements'),dbTout('sanitaire'),dbTout('traitements'),dbTout('stocks')]);
+  const al=[];
+  const auj=todayISO();
+  lotsActifs().forEach(lot=>{
+    const pj=prods.filter(p=>p.lotId===lot.id).sort((a,b)=>b.date.localeCompare(a.date));
+    if(pj[0]){
+      const eff=effectifLotADate(lot,pj[0].date,prods,mvts);
+      const c=calculsProd(pj[0],eff); const std=standardPonte(ageLotSemaines(lot,pj[0].date));
+      if(c.tauxPonte!=null){
+        if(c.tauxPonte < std-8) al.push({niveau:'r',ic:'📉',titre:`Chute de ponte — ${lot.nom}`,txt:`Ponte ${pct(c.tauxPonte)} le ${isoToFr(pj[0].date)}, soit ${nbFmt(std-c.tauxPonte,1)} pts sous le standard.`});
+        else if(c.tauxPonte < PARAM.objectifs.tauxPonteMin) al.push({niveau:'o',ic:'📉',titre:`Ponte sous objectif — ${lot.nom}`,txt:`Ponte ${pct(c.tauxPonte)} < objectif ${pct(PARAM.objectifs.tauxPonteMin)}.`});
+      }
+      // saisie manquante depuis > 2 jours
+      const retard=diffJours(pj[0].date,auj);
+      if(retard>2) al.push({niveau:'o',ic:'📝',titre:`Saisie manquante — ${lot.nom}`,txt:`Dernière saisie il y a ${retard} jours (${isoToFr(pj[0].date)}).`});
+    }
+    // surmortalité 7j
+    const d7=ajouterJours(auj,-6);
+    const ms=mvts.filter(m=>m.lotId===lot.id && m.type==='mortalite' && m.date>=d7).reduce((s,m)=>s+m.nombre,0);
+    const effRef=effectifLotADate(lot,d7,prods,mvts);
+    const tm=effRef>0?ms/effRef*100:0;
+    if(tm>PARAM.objectifs.mortaliteHebdoMax*1.8) al.push({niveau:'r',ic:'☠️',titre:`Surmortalité — ${lot.nom}`,txt:`${nbFmt(ms)} morts sur 7 j (${pct(tm,2)}), au-dessus du seuil ${pct(PARAM.objectifs.mortaliteHebdoMax,2)}.`});
+  });
+  // échéances sanitaires
+  san.filter(s=>s.dateEcheance).forEach(s=>{ const j=diffJours(auj,s.dateEcheance);
+    if(j<0) al.push({niveau:'r',ic:'⏰',titre:`Contrôle en retard`,txt:`${libTypeSanitaire(s.type)} (${libLot(s.lotId)}) était dû le ${isoToFr(s.dateEcheance)}.`});
+    else if(j<=7) al.push({niveau:'o',ic:'⏰',titre:`Échéance sanitaire proche`,txt:`${libTypeSanitaire(s.type)} (${libLot(s.lotId)}) dans ${j} j (${isoToFr(s.dateEcheance)}).`});
+  });
+  // délais d'attente œufs en cours
+  trs.forEach(t=>{ const fin=finDelaiAttente(t); if(fin>=auj && t.delaiAttenteOeufsJours>0) al.push({niveau:'o',ic:'🥚',titre:`Délai d'attente œufs en cours`,txt:`${esc(t.produit)} (${libLot(t.lotId)}) : œufs impropres jusqu'au ${isoToFr(fin)}.`}); });
+  // stocks bas
+  stocks.forEach(s=>{ if(s.seuilAlerte>0 && s.quantite<=s.seuilAlerte) al.push({niveau: s.quantite<=s.seuilAlerte*0.5?'r':'o',ic:'📦',titre:`Stock bas — ${esc(s.designation)}`,txt:`${nbFmt(s.quantite)} ${esc(s.unite)} restant(s) (seuil ${nbFmt(s.seuilAlerte)}).`}); });
+
+  ETAT.alertes=al;
+  majBadges();
+  return al;
+}
+function afficherAlertes(zone){
+  if(!zone) return;
+  const al=ETAT.alertes;
+  if(!al.length){ zone.innerHTML=`<div class="alerte v"><span class="ic">✅</span><div>Aucune alerte active. Tous les indicateurs sont dans les objectifs.</div></div>`; return; }
+  const ordre={r:0,o:1,v:2};
+  zone.innerHTML=[...al].sort((a,b)=>ordre[a.niveau]-ordre[b.niveau]).map(a=>
+    `<div class="alerte ${a.niveau}"><span class="ic">${a.ic}</span><div><b>${esc(a.titre)}</b> — ${esc(a.txt)}</div></div>`).join('');
+}
+
+/* Helpers registre/sanitaire réutilisés */
+function libTypeSanitaire(t){ return {salmonelle:'Autocontrôle Salmonelles',vaccination:'Vaccination',desinfection:'Désinfection',nettoyage:'Nettoyage',prophylaxie:'Prophylaxie',autre:'Contrôle'}[t]||t; }
+function finDelaiAttente(t){ const finTrait=ajouterJours(t.date,(t.dureeJours||1)-1); return ajouterJours(finTrait,t.delaiAttenteOeufsJours||0); }
+
+/* ===========================================================================
+   13. EXPORTS GÉNÉRIQUES (Excel / PDF)
+   =========================================================================== */
+// Un nom de feuille Excel ne peut pas dépasser 31 caractères ni contenir : \ / ? * [ ]
+function nomFeuilleValide(nom){ return String(nom).replace(/[:\\\/?*\[\]]/g,'-').slice(0,31); }
+function exporterExcel(data, nomFichier, nomFeuille='Feuille1'){
+  if(typeof XLSX==='undefined'){ toast('Export Excel indisponible (librairie non chargée, hors-ligne ?)','err'); return; }
+  if(!data.length){ toast('Aucune donnée à exporter.','info'); return; }
+  const ws=XLSX.utils.json_to_sheet(data);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,nomFeuilleValide(nomFeuille));
+  XLSX.writeFile(wb, nomFichier+'_'+todayISO()+'.xlsx');
+  toast('Export Excel généré ✔','ok');
+}
+function nouveauPDF(){
+  if(!window.jspdf){ toast('Export PDF indisponible (librairie non chargée)','err'); return null; }
+  const {jsPDF}=window.jspdf; return new jsPDF({unit:'mm',format:'a4'});
+}
+function enteteExploitationPDF(doc, titre, y=18){
+  const ex=PARAM.exploitation;
+  doc.setFontSize(15); doc.setFont(undefined,'bold'); doc.text(ex.nom, 14, y);
+  doc.setFontSize(9); doc.setFont(undefined,'normal');
+  const lignes=[ex.adresse.replace(/\n/g,' — '), `SIRET ${ex.siret} · N° cheptel ${ex.numeroCheptel}`, `${ex.tel} · ${ex.email}`];
+  lignes.forEach((l,i)=>doc.text(l,14,y+5+i*4));
+  doc.setFontSize(13); doc.setFont(undefined,'bold'); doc.text(titre, 14, y+22);
+  doc.setFont(undefined,'normal');
+  return y+28;
+}
+
+/* ===========================================================================
+   14bis. MODULE : REGISTRE D'ÉLEVAGE  (priorité 3)
+   Gestion des lots, mouvements (entrées/sorties/mortalité/réformes),
+   traitements vétérinaires avec délais d'attente, export PDF pour la DDPP.
+   =========================================================================== */
+async function renderRegistre(vue){
+  majSelectLot(true);
+  document.getElementById('lotSelect').value=ETAT.lotCourant;
+  const onglet = ETAT._ongletReg || 'mouvements';
+  vue.innerHTML=`
+    <div class="pilotes">
+      <button class="pilote ${onglet==='lots'?'actif':''}" onclick="setOngletReg('lots')">🏠 Lots / bandes</button>
+      <button class="pilote ${onglet==='mouvements'?'actif':''}" onclick="setOngletReg('mouvements')">↕️ Entrées / sorties / mortalité</button>
+      <button class="pilote ${onglet==='traitements'?'actif':''}" onclick="setOngletReg('traitements')">💊 Traitements vétérinaires</button>
+    </div>
+    <div id="regZone"></div>`;
+  if(onglet==='lots') await regLots();
+  else if(onglet==='mouvements') await regMouvements();
+  else await regTraitements();
+  document.getElementById('lotSelect').onchange=e=>{ ETAT.lotCourant=e.target.value; renderRegistre(vue); };
+}
+function setOngletReg(o){ ETAT._ongletReg=o; renderRegistre(document.getElementById('vue')); }
+
+/* --- Lots --- */
+async function regLots(){
+  const [prods,mvts]=await Promise.all([dbTout('production'),dbTout('mouvements')]);
+  let cards='';
+  ETAT.lots.forEach(lot=>{
+    const eff=effectifLotADate(lot,todayISO(),prods,mvts);
+    const age=ageLotSemaines(lot,todayISO());
+    const morta=lot.effectifInitial>0?(lot.effectifInitial-eff)/lot.effectifInitial*100:0;
+    cards+=`<div class="card pad" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <h3 style="font-size:16px">${esc(lot.nom)}</h3>
+        <span class="tag ${lot.statut==='actif'?'v':'g'}">${esc(lot.statut)}</span>
+        <span class="spacer" style="flex:1"></span>
+        <button class="btn xs sec" onclick='editLot("${lot.id}")'>✏️ Modifier</button>
+        <button class="btn xs dang" onclick='supprLot("${lot.id}")'>🗑️</button>
+      </div>
+      <div class="grid c3" style="margin-top:10px">
+        <div><span class="mini">Bâtiment</span><br><b>${esc(lot.batiment||'—')}</b></div>
+        <div><span class="mini">Souche</span><br><b>${esc(lot.souche)}</b></div>
+        <div><span class="mini">Code élevage</span><br><b>${lot.codeElevage} (${codeElevageLib(lot.codeElevage)})</b></div>
+        <div><span class="mini">Mise en place</span><br><b>${isoToFr(lot.dateMiseEnPlace)}</b> (${lot.ageMiseEnPlaceSemaines} sem)</div>
+        <div><span class="mini">Âge actuel</span><br><b>${nbFmt(age,0)} sem</b></div>
+        <div><span class="mini">Effectif initial → présent</span><br><b>${nbFmt(lot.effectifInitial)} → ${nbFmt(eff)}</b> <span class="tag ${morta<5?'v':morta<10?'o':'r'}">${pct(morta,1)}</span></div>
+      </div>
+      ${lot.notes?`<div class="mini" style="margin-top:8px">📝 ${esc(lot.notes)}</div>`:''}
+    </div>`;
+  });
+  document.getElementById('regZone').innerHTML=`
+    <div class="barre-actions"><button class="btn" onclick="editLot()">➕ Nouveau lot / bande</button><span class="spacer"></span></div>
+    ${cards||'<div class="card pad"><div class="vide"><span class="em">🏠</span>Aucun lot. Créez votre première bande.</div></div>'}`;
+}
+function codeElevageLib(c){ return {0:'Bio',1:'Plein air',2:'Au sol',3:'Cage/volière'}[c]||'—'; }
+async function editLot(id){
+  const lot = id? await dbGet('lots',id) : {codeElevage:PARAM.exploitation.codeElevage,souche:PARAM.exploitation.souche,ageMiseEnPlaceSemaines:18,statut:'actif',dateMiseEnPlace:todayISO()};
+  ouvrirModal(id?'Modifier le lot':'Nouveau lot / bande',`
+    <label class="champ"><span>Nom du lot *</span><input type="text" id="lo_nom" value="${esc(lot.nom||'')}" placeholder="ex. Lot A — Bât. 1"></label>
+    <div class="form-grid">
+      <label class="champ"><span>Bâtiment</span><input type="text" id="lo_bat" value="${esc(lot.batiment||'')}"></label>
+      <label class="champ"><span>Souche</span><input type="text" id="lo_souche" value="${esc(lot.souche||'')}"></label>
+      <label class="champ"><span>Effectif initial *</span><input type="number" id="lo_eff" min="1" max="200000" value="${lot.effectifInitial??''}"></label>
+      <label class="champ"><span>Code élevage</span><select id="lo_code">
+        ${[0,1,2,3].map(c=>`<option value="${c}" ${lot.codeElevage==c?'selected':''}>${c} — ${codeElevageLib(c)}</option>`).join('')}
+      </select></label>
+      <label class="champ"><span>Date de mise en place *</span><input type="date" id="lo_date" value="${lot.dateMiseEnPlace||todayISO()}"></label>
+      <label class="champ"><span>Âge à la mise en place (sem)</span><input type="number" id="lo_age" min="1" max="30" value="${lot.ageMiseEnPlaceSemaines??18}"></label>
+      <label class="champ"><span>Statut</span><select id="lo_statut">
+        <option value="actif" ${lot.statut==='actif'?'selected':''}>Actif</option>
+        <option value="terminé" ${lot.statut==='terminé'?'selected':''}>Terminé (réformé)</option>
+      </select></label>
+    </div>
+    <label class="champ"><span>Notes</span><textarea id="lo_notes">${esc(lot.notes||'')}</textarea></label>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Enregistrer',action:async()=>{
+    const nom=document.getElementById('lo_nom').value.trim();
+    const eff=document.getElementById('lo_eff').value;
+    if(!nom){ toast('Le nom est obligatoire.','err'); return; }
+    const e=valNombre(eff,{min:1,max:200000,champ:'Effectif',entier:true}); if(e||eff===''){ toast(e||'Effectif obligatoire.','err'); return; }
+    const obj={id:id||uid(),nom,batiment:document.getElementById('lo_bat').value,souche:document.getElementById('lo_souche').value,
+      effectifInitial:+eff,codeElevage:+document.getElementById('lo_code').value,dateMiseEnPlace:document.getElementById('lo_date').value,
+      ageMiseEnPlaceSemaines:+document.getElementById('lo_age').value,statut:document.getElementById('lo_statut').value,notes:document.getElementById('lo_notes').value};
+    await dbPut('lots',obj);
+    // s'assurer d'un mouvement d'entrée à la mise en place
+    if(!id){ await dbPut('mouvements',{id:uid(),lotId:obj.id,date:obj.dateMiseEnPlace,type:'entree',nombre:obj.effectifInitial,motif:'Mise en place',tiers:'',remarques:''}); }
+    ETAT.lots=await dbTout('lots'); fermerModal(); toast('Lot enregistré ✔','ok'); await calculerAlertes();
+    renderRegistre(document.getElementById('vue'));
+  }}]);
+}
+function supprLot(id){
+  const lot=ETAT.lots.find(l=>l.id===id);
+  confirmer(`Supprimer le lot « ${esc(lot.nom)} » et TOUTES ses données (production, mouvements) ? Action irréversible.`, async()=>{
+    for(const store of ['production','mouvements','traitements']){ const rows=await dbTout(store); for(const r of rows.filter(x=>x.lotId===id)) await dbDel(store,r.id); }
+    await dbDel('lots',id); ETAT.lots=await dbTout('lots');
+    if(ETAT.lotCourant===id) ETAT.lotCourant=ETAT.lots[0]?.id||'tous';
+    toast('Lot supprimé.','ok'); await calculerAlertes(); renderRegistre(document.getElementById('vue'));
+  });
+}
+
+/* --- Mouvements (registre entrées/sorties) --- */
+async function regMouvements(){
+  const mvts=(await dbTout('mouvements')).filter(m=>ETAT.lotCourant==='tous'||m.lotId===ETAT.lotCourant).sort((a,b)=>b.date.localeCompare(a.date));
+  let rows='';
+  mvts.slice(0,200).forEach(m=>{
+    rows+=`<tr>
+      <td>${isoToFr(m.date)}</td>
+      <td>${libLot(m.lotId)}</td>
+      <td><span class="tag ${m.type==='entree'?'v':m.type==='mortalite'?'r':'o'}">${libTypeMvt(m.type)}</span></td>
+      <td class="num">${m.type==='entree'?'+':'−'}${nbFmt(m.nombre)}</td>
+      <td>${esc(m.motif||'')}</td>
+      <td>${esc(m.tiers||'')}</td>
+      <td class="act">
+        ${m.origine==='production'?'<span class="mini">auto</span>':`<button class="btn xs sec" onclick='editMvt("${m.id}")'>✏️</button> <button class="btn xs dang" onclick='supprMvt("${m.id}")'>🗑️</button>`}
+      </td></tr>`;
+  });
+  document.getElementById('regZone').innerHTML=`
+    <div class="barre-actions">
+      <button class="btn" onclick="editMvt()">➕ Nouveau mouvement</button>
+      <span class="spacer"></span>
+      <button class="btn sm sec" onclick="exportRegistrePDF()">📄 Export PDF (DDPP)</button>
+      <button class="btn sm sec" onclick="exportMvtExcel()">⬇️ Excel</button>
+    </div>
+    <div class="tbl-wrap"><table class="data"><thead><tr>
+      <th>Date</th><th>Lot</th><th>Type</th><th class="num">Nombre</th><th>Motif</th><th>Tiers / destination</th><th></th>
+    </tr></thead><tbody>${rows||'<tr><td colspan="7"><div class="vide"><span class="em">📒</span>Aucun mouvement.</div></td></tr>'}</tbody></table></div>`;
+}
+function libTypeMvt(t){ return {entree:'Entrée',sortie:'Sortie',mortalite:'Mortalité',reforme:'Réforme'}[t]||t; }
+async function editMvt(id){
+  const m=id?await dbGet('mouvements',id):{date:todayISO(),type:'sortie',lotId:ETAT.lotCourant==='tous'?ETAT.lots[0]?.id:ETAT.lotCourant};
+  ouvrirModal(id?'Modifier le mouvement':'Nouveau mouvement',`
+    <div class="form-grid">
+      <label class="champ"><span>Date *</span><input type="date" id="mv_date" value="${m.date}" max="${todayISO()}"></label>
+      <label class="champ"><span>Lot *</span><select id="mv_lot">${ETAT.lots.map(l=>`<option value="${l.id}" ${m.lotId===l.id?'selected':''}>${esc(l.nom)}</option>`).join('')}</select></label>
+      <label class="champ"><span>Type *</span><select id="mv_type">
+        ${['entree','sortie','mortalite','reforme'].map(t=>`<option value="${t}" ${m.type===t?'selected':''}>${libTypeMvt(t)}</option>`).join('')}</select></label>
+      <label class="champ"><span>Nombre *</span><input type="number" id="mv_nb" min="1" value="${m.nombre??''}"></label>
+    </div>
+    <label class="champ"><span>Motif</span><input type="text" id="mv_motif" value="${esc(m.motif||'')}" placeholder="ex. Vente réforme, ponte, transfert…"></label>
+    <label class="champ"><span>Tiers / destination / origine</span><input type="text" id="mv_tiers" value="${esc(m.tiers||'')}"></label>
+    <label class="champ"><span>Remarques</span><textarea id="mv_rem">${esc(m.remarques||'')}</textarea></label>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Enregistrer',action:async()=>{
+    const nb=document.getElementById('mv_nb').value;
+    const e=valNombre(nb,{min:1,max:200000,champ:'Nombre',entier:true}); if(e||nb===''){ toast(e||'Nombre obligatoire.','err'); return; }
+    const obj={id:id||uid(),date:document.getElementById('mv_date').value,lotId:document.getElementById('mv_lot').value,
+      type:document.getElementById('mv_type').value,nombre:+nb,motif:document.getElementById('mv_motif').value,
+      tiers:document.getElementById('mv_tiers').value,remarques:document.getElementById('mv_rem').value};
+    await dbPut('mouvements',obj); fermerModal(); toast('Mouvement enregistré ✔','ok'); await calculerAlertes();
+    renderRegistre(document.getElementById('vue'));
+  }}]);
+}
+function supprMvt(id){ confirmer('Supprimer ce mouvement ?', async()=>{ await dbDel('mouvements',id); toast('Supprimé.','ok'); await calculerAlertes(); renderRegistre(document.getElementById('vue')); }); }
+async function exportMvtExcel(){
+  const mvts=(await dbTout('mouvements')).filter(m=>ETAT.lotCourant==='tous'||m.lotId===ETAT.lotCourant).sort((a,b)=>a.date.localeCompare(b.date));
+  exporterExcel(mvts.map(m=>({Date:isoToFr(m.date),Lot:libLot(m.lotId),Type:libTypeMvt(m.type),Nombre:m.nombre,Motif:m.motif,Tiers:m.tiers,Remarques:m.remarques})),'Registre_mouvements','Mouvements');
+}
+
+/* --- Traitements vétérinaires --- */
+async function regTraitements(){
+  const trs=(await dbTout('traitements')).filter(t=>ETAT.lotCourant==='tous'||t.lotId===ETAT.lotCourant).sort((a,b)=>b.date.localeCompare(a.date));
+  let rows='';
+  trs.forEach(t=>{
+    const fin=finDelaiAttente(t); const enCours=fin>=todayISO() && t.delaiAttenteOeufsJours>0;
+    rows+=`<tr>
+      <td>${isoToFr(t.date)}</td><td>${libLot(t.lotId)}</td>
+      <td><b>${esc(t.produit)}</b><br><span class="mini">${esc(t.motif||'')}</span></td>
+      <td>${esc(t.dose||'')} · ${esc(t.voie||'')}</td>
+      <td class="num">${t.dureeJours||1} j</td>
+      <td class="num">${t.delaiAttenteOeufsJours||0} j</td>
+      <td>${t.delaiAttenteOeufsJours>0?`<span class="tag ${enCours?'r':'v'}">${enCours?'jusqu\'au '+isoToFr(fin):'levé'}</span>`:'<span class="tag g">aucun</span>'}</td>
+      <td class="act"><button class="btn xs sec" onclick='editTrait("${t.id}")'>✏️</button> <button class="btn xs dang" onclick='supprTrait("${t.id}")'>🗑️</button></td>
+    </tr>`;
+  });
+  document.getElementById('regZone').innerHTML=`
+    <div class="barre-actions">
+      <button class="btn" onclick="editTrait()">➕ Nouveau traitement</button>
+      <span class="spacer"></span>
+      <button class="btn sm sec" onclick="exportRegistrePDF()">📄 Export PDF (DDPP)</button>
+    </div>
+    <div class="alerte b"><span class="ic">ℹ️</span><div>Le <b>délai d'attente œufs</b> commence à la fin du traitement. Pendant ce délai, les œufs ne doivent pas être commercialisés pour la consommation.</div></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr>
+      <th>Date</th><th>Lot</th><th>Produit / motif</th><th>Dose / voie</th><th class="num">Durée</th><th class="num">Délai œufs</th><th>Délai d'attente</th><th></th>
+    </tr></thead><tbody>${rows||'<tr><td colspan="8"><div class="vide"><span class="em">💊</span>Aucun traitement enregistré.</div></td></tr>'}</tbody></table></div>`;
+}
+async function editTrait(id){
+  const t=id?await dbGet('traitements',id):{date:todayISO(),dureeJours:1,delaiAttenteOeufsJours:0,voie:'Eau de boisson',lotId:ETAT.lotCourant==='tous'?ETAT.lots[0]?.id:ETAT.lotCourant};
+  ouvrirModal(id?'Modifier le traitement':'Nouveau traitement vétérinaire',`
+    <div class="form-grid">
+      <label class="champ"><span>Date de début *</span><input type="date" id="tr_date" value="${t.date}"></label>
+      <label class="champ"><span>Lot *</span><select id="tr_lot">${ETAT.lots.map(l=>`<option value="${l.id}" ${t.lotId===l.id?'selected':''}>${esc(l.nom)}</option>`).join('')}</select></label>
+    </div>
+    <label class="champ"><span>Produit / médicament *</span><input type="text" id="tr_prod" value="${esc(t.produit||'')}" placeholder="ex. Baytril, vaccin…"></label>
+    <label class="champ"><span>Motif / indication</span><input type="text" id="tr_motif" value="${esc(t.motif||'')}"></label>
+    <div class="form-grid c4">
+      <label class="champ"><span>Dose</span><input type="text" id="tr_dose" value="${esc(t.dose||'')}" placeholder="ex. 10 mg/kg"></label>
+      <label class="champ"><span>Voie</span><input type="text" id="tr_voie" value="${esc(t.voie||'')}"></label>
+      <label class="champ"><span>Durée (jours) *</span><input type="number" id="tr_duree" min="1" max="60" value="${t.dureeJours||1}"></label>
+      <label class="champ"><span>Délai attente œufs (j) *</span><input type="number" id="tr_delai" min="0" max="90" value="${t.delaiAttenteOeufsJours||0}"></label>
+    </div>
+    <div class="form-grid">
+      <label class="champ"><span>Vétérinaire prescripteur</span><input type="text" id="tr_vet" value="${esc(t.veterinaire||'')}"></label>
+      <label class="champ"><span>N° ordonnance</span><input type="text" id="tr_ord" value="${esc(t.ordonnance||'')}"></label>
+    </div>
+    <label class="champ"><span>Remarques</span><textarea id="tr_rem">${esc(t.remarques||'')}</textarea></label>
+    <div class="calc-live" id="tr_calc"></div>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Enregistrer',action:async()=>{
+    const prod=document.getElementById('tr_prod').value.trim(); if(!prod){ toast('Le produit est obligatoire.','err'); return; }
+    const obj={id:id||uid(),date:document.getElementById('tr_date').value,lotId:document.getElementById('tr_lot').value,produit:prod,
+      motif:document.getElementById('tr_motif').value,dose:document.getElementById('tr_dose').value,voie:document.getElementById('tr_voie').value,
+      dureeJours:+document.getElementById('tr_duree').value||1,delaiAttenteOeufsJours:+document.getElementById('tr_delai').value||0,
+      veterinaire:document.getElementById('tr_vet').value,ordonnance:document.getElementById('tr_ord').value,remarques:document.getElementById('tr_rem').value};
+    await dbPut('traitements',obj); fermerModal(); toast('Traitement enregistré ✔','ok'); await calculerAlertes();
+    renderRegistre(document.getElementById('vue'));
+  }}]);
+  const maj=()=>{ const d=document.getElementById('tr_date').value,du=+document.getElementById('tr_duree').value||1,de=+document.getElementById('tr_delai').value||0;
+    const fin=ajouterJours(ajouterJours(d,du-1),de);
+    document.getElementById('tr_calc').innerHTML=`<div class="it">Fin de traitement<b>${isoToFr(ajouterJours(d,du-1))}</b></div><div class="it">Œufs consommables à partir du<b>${isoToFr(ajouterJours(fin,1))}</b></div>`; };
+  ['tr_date','tr_duree','tr_delai'].forEach(i=>document.getElementById(i).addEventListener('input',maj)); maj();
+}
+function supprTrait(id){ confirmer('Supprimer ce traitement ?', async()=>{ await dbDel('traitements',id); toast('Supprimé.','ok'); await calculerAlertes(); renderRegistre(document.getElementById('vue')); }); }
+
+/* --- Export PDF registre conforme DDPP --- */
+async function exportRegistrePDF(){
+  const doc=nouveauPDF(); if(!doc) return;
+  const [mvts,trs]=await Promise.all([dbTout('mouvements'),dbTout('traitements')]);
+  const filtreLot = ETAT.lotCourant;
+  const fMvts=mvts.filter(m=>filtreLot==='tous'||m.lotId===filtreLot).sort((a,b)=>a.date.localeCompare(b.date));
+  const fTrs=trs.filter(t=>filtreLot==='tous'||t.lotId===filtreLot).sort((a,b)=>a.date.localeCompare(b.date));
+  let y=enteteExploitationPDF(doc,"Registre d'élevage — "+(filtreLot==='tous'?'Tous les lots':libLot(filtreLot)));
+  doc.setFontSize(8); doc.text('Édité le '+isoToFr(todayISO())+' — document conforme à l\'obligation de tenue du registre d\'élevage',14,y); y+=3;
+  doc.autoTable({startY:y+3,head:[['Date','Lot','Mouvement','Nombre','Motif','Tiers']],
+    body:fMvts.map(m=>[isoToFr(m.date),libLot(m.lotId),libTypeMvt(m.type),(m.type==='entree'?'+':'−')+m.nombre,m.motif||'',m.tiers||'']),
+    styles:{fontSize:7.5},headStyles:{fillColor:[31,122,77]},margin:{left:14,right:14}});
+  let y2=doc.lastAutoTable.finalY+8;
+  if(y2>250){ doc.addPage(); y2=18; }
+  doc.setFontSize(12); doc.setFont(undefined,'bold'); doc.text('Traitements vétérinaires',14,y2); doc.setFont(undefined,'normal');
+  doc.autoTable({startY:y2+3,head:[['Date','Lot','Produit','Motif','Dose/voie','Durée','Délai œufs','Fin délai','Vétérinaire','Ordonn.']],
+    body:fTrs.map(t=>[isoToFr(t.date),libLot(t.lotId),t.produit,t.motif||'',(t.dose||'')+' '+(t.voie||''),(t.dureeJours||1)+'j',(t.delaiAttenteOeufsJours||0)+'j',isoToFr(finDelaiAttente(t)),t.veterinaire||'',t.ordonnance||'']),
+    styles:{fontSize:7},headStyles:{fillColor:[31,122,77]},margin:{left:14,right:14}});
+  doc.save('Registre_elevage_'+todayISO()+'.pdf'); toast('Registre PDF généré ✔','ok');
+}
+
+/* ===========================================================================
+   15. MODULE : SUIVI SANITAIRE
+   =========================================================================== */
+async function renderSanitaire(vue){
+  document.getElementById('lotSelectBox').style.display='none';
+  const san=(await dbTout('sanitaire')).sort((a,b)=>(b.dateRealisation||b.dateEcheance||'').localeCompare(a.dateRealisation||a.dateEcheance||''));
+  const auj=todayISO();
+  // Prochaines échéances
+  const ech=san.filter(s=>s.dateEcheance&&s.dateEcheance>=ajouterJours(auj,-30)).sort((a,b)=>a.dateEcheance.localeCompare(b.dateEcheance));
+  const cat=t=>san.filter(s=>s.type===t);
+  vue.innerHTML=`
+    <div class="grid c2" style="align-items:start">
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">🔔</span><h2>Calendrier & rappels</h2></div>
+        <div id="sanEch"></div>
+      </div>
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">🧪</span><h2>Plan de maîtrise sanitaire</h2></div>
+        <div class="grid c3">
+          <div class="kpi-card v"><div class="lib">Autocontrôles Salmonelles</div><div class="val">${cat('salmonelle').length}</div><div class="cmp">${cat('salmonelle').filter(s=>s.resultat==='Négatif').length} négatif(s)</div></div>
+          <div class="kpi-card b"><div class="lib">Vaccinations</div><div class="val">${cat('vaccination').length}</div></div>
+          <div class="kpi-card o"><div class="lib">Nettoyages / désinfections</div><div class="val">${cat('nettoyage').length+cat('desinfection').length}</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card pad" style="margin-top:16px">
+      <div class="barre-actions">
+        <button class="btn" onclick="editSanitaire()">➕ Nouvel enregistrement</button>
+        <span class="spacer"></span>
+        <button class="btn sm sec" onclick="exportSanitaireExcel()">⬇️ Excel</button>
+      </div>
+      <div class="tbl-wrap" id="sanTable"></div>
+    </div>`;
+  // échéances
+  const box=document.getElementById('sanEch');
+  if(!ech.length){ box.innerHTML='<div class="vide"><span class="em">📅</span>Aucune échéance planifiée.</div>'; }
+  else box.innerHTML=ech.slice(0,10).map(s=>{ const j=diffJours(auj,s.dateEcheance); const cls=j<0?'r':j<=7?'o':'b';
+    return `<div class="alerte ${cls}"><span class="ic">📌</span><div><b>${libTypeSanitaire(s.type)}</b> — ${libLot(s.lotId)}<br><span class="mini">${isoToFr(s.dateEcheance)} · ${j<0?'en retard':j===0?"aujourd'hui":'dans '+j+' j'}</span></div></div>`; }).join('');
+  // table
+  let rows='';
+  san.forEach(s=>{ rows+=`<tr>
+    <td><span class="tag ${s.type==='salmonelle'?'v':s.type==='vaccination'?'b':'o'}">${libTypeSanitaire(s.type)}</span></td>
+    <td>${libLot(s.lotId)}</td>
+    <td>${isoToFr(s.dateRealisation)||'—'}</td>
+    <td>${s.resultat?esc(s.resultat):'—'}</td>
+    <td>${esc(s.produit||s.reference||'')}</td>
+    <td>${s.dateEcheance?isoToFr(s.dateEcheance):'—'}</td>
+    <td class="act"><button class="btn xs sec" onclick='editSanitaire("${s.id}")'>✏️</button> <button class="btn xs dang" onclick='supprSanitaire("${s.id}")'>🗑️</button></td>
+  </tr>`; });
+  document.getElementById('sanTable').innerHTML=`<table class="data"><thead><tr>
+    <th>Type</th><th>Lot</th><th>Réalisé le</th><th>Résultat</th><th>Produit / réf.</th><th>Prochaine échéance</th><th></th>
+  </tr></thead><tbody>${rows||'<tr><td colspan="7"><div class="vide"><span class="em">💉</span>Aucun enregistrement sanitaire.</div></td></tr>'}</tbody></table>`;
+}
+async function editSanitaire(id){
+  const s=id?await dbGet('sanitaire',id):{type:'salmonelle',dateRealisation:todayISO(),lotId:ETAT.lots[0]?.id||'tous'};
+  const typeChange=`onchange="document.getElementById('sanDelaiHint').textContent = this.value==='salmonelle'?'Rappel : autocontrôle toutes les ~15 semaines (105 j).':''"`;
+  ouvrirModal(id?'Modifier':'Nouvel enregistrement sanitaire',`
+    <div class="form-grid">
+      <label class="champ"><span>Type *</span><select id="sa_type" ${typeChange}>
+        ${['salmonelle','vaccination','desinfection','nettoyage','prophylaxie','autre'].map(t=>`<option value="${t}" ${s.type===t?'selected':''}>${libTypeSanitaire(t)}</option>`).join('')}</select></label>
+      <label class="champ"><span>Lot concerné</span><select id="sa_lot"><option value="tous" ${s.lotId==='tous'?'selected':''}>Tous / bâtiments</option>${ETAT.lots.map(l=>`<option value="${l.id}" ${s.lotId===l.id?'selected':''}>${esc(l.nom)}</option>`).join('')}</select></label>
+      <label class="champ"><span>Date de réalisation</span><input type="date" id="sa_date" value="${s.dateRealisation||''}"></label>
+      <label class="champ"><span>Prochaine échéance</span><input type="date" id="sa_ech" value="${s.dateEcheance||''}"></label>
+    </div>
+    <div class="mini" id="sanDelaiHint" style="margin:-4px 0 10px">${s.type==='salmonelle'?'Rappel : autocontrôle toutes les ~15 semaines (105 j).':''}</div>
+    <div style="margin-bottom:10px"><button class="btn xs sec" onclick="document.getElementById('sa_ech').value=ajouterJours(document.getElementById('sa_date').value||todayISO(),105)">+15 semaines (Salmonelles)</button></div>
+    <div class="form-grid">
+      <label class="champ"><span>Résultat</span><input type="text" id="sa_res" value="${esc(s.resultat||'')}" placeholder="Négatif / Positif / Réalisé…"></label>
+      <label class="champ"><span>Produit / vaccin</span><input type="text" id="sa_prod" value="${esc(s.produit||'')}"></label>
+      <label class="champ"><span>Laboratoire</span><input type="text" id="sa_lab" value="${esc(s.laboratoire||'')}"></label>
+      <label class="champ"><span>Référence / n° analyse</span><input type="text" id="sa_ref" value="${esc(s.reference||'')}"></label>
+    </div>
+    <label class="champ"><span>Remarques</span><textarea id="sa_rem">${esc(s.remarques||'')}</textarea></label>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Enregistrer',action:async()=>{
+    const obj={id:id||uid(),type:document.getElementById('sa_type').value,lotId:document.getElementById('sa_lot').value,
+      dateRealisation:document.getElementById('sa_date').value,dateEcheance:document.getElementById('sa_ech').value,
+      resultat:document.getElementById('sa_res').value,produit:document.getElementById('sa_prod').value,
+      laboratoire:document.getElementById('sa_lab').value,reference:document.getElementById('sa_ref').value,remarques:document.getElementById('sa_rem').value};
+    await dbPut('sanitaire',obj); fermerModal(); toast('Enregistré ✔','ok'); await calculerAlertes(); renderSanitaire(document.getElementById('vue'));
+  }}]);
+}
+function supprSanitaire(id){ confirmer('Supprimer cet enregistrement ?', async()=>{ await dbDel('sanitaire',id); toast('Supprimé.','ok'); await calculerAlertes(); renderSanitaire(document.getElementById('vue')); }); }
+async function exportSanitaireExcel(){
+  const san=await dbTout('sanitaire');
+  exporterExcel(san.map(s=>({Type:libTypeSanitaire(s.type),Lot:libLot(s.lotId),'Réalisé le':isoToFr(s.dateRealisation),Résultat:s.resultat,Produit:s.produit,Laboratoire:s.laboratoire,Référence:s.reference,'Échéance':isoToFr(s.dateEcheance),Remarques:s.remarques})),'Suivi_sanitaire','Sanitaire');
+}
+
+/* ===========================================================================
+   16. MODULE : GESTION COMMERCIALE (clients, factures/BL, cotations)
+   =========================================================================== */
+async function renderCommercial(vue){
+  document.getElementById('lotSelectBox').style.display='none';
+  const onglet=ETAT._ongletCom||'factures';
+  vue.innerHTML=`
+    <div class="pilotes">
+      <button class="pilote ${onglet==='factures'?'actif':''}" onclick="setOngletCom('factures')">🧾 Factures & bons de livraison</button>
+      <button class="pilote ${onglet==='clients'?'actif':''}" onclick="setOngletCom('clients')">👥 Clients</button>
+      <button class="pilote ${onglet==='cotations'?'actif':''}" onclick="setOngletCom('cotations')">📈 Cotations œufs</button>
+      <button class="pilote ${onglet==='ca'?'actif':''}" onclick="setOngletCom('ca')">💰 Chiffre d'affaires</button>
+    </div>
+    <div id="comZone"></div>`;
+  if(onglet==='factures') await comFactures();
+  else if(onglet==='clients') await comClients();
+  else if(onglet==='cotations') await comCotations();
+  else await comCA();
+}
+function setOngletCom(o){ ETAT._ongletCom=o; renderCommercial(document.getElementById('vue')); }
+function totauxFacture(f){ let ht=0,tva=0; (f.lignes||[]).forEach(l=>{ const m=(+l.quantite||0)*(+l.prixUnitaire||0); ht+=m; tva+=m*(+l.tva||0)/100; }); return {ht,tva,ttc:ht+tva}; }
+
+async function comFactures(){
+  const [factures,clients]=await Promise.all([dbTout('factures'),dbTout('clients')]);
+  factures.sort((a,b)=>b.date.localeCompare(a.date));
+  const nomClient=id=>clients.find(c=>c.id===id)?.nom||'—';
+  let rows='';
+  factures.forEach(f=>{ const t=totauxFacture(f);
+    rows+=`<tr>
+      <td><b>${esc(f.numero)}</b><br><span class="tag ${f.type==='facture'?'b':'g'}">${f.type==='facture'?'Facture':'Bon de livraison'}</span></td>
+      <td>${isoToFr(f.date)}</td><td>${esc(nomClient(f.clientId))}</td>
+      <td class="num">${euro(t.ht)}</td><td class="num">${euro(t.ttc)}</td>
+      <td><span class="tag ${f.statut==='payee'?'v':f.statut==='emise'?'o':'g'}">${{payee:'Payée',emise:'Émise',brouillon:'Brouillon'}[f.statut]||f.statut}</span></td>
+      <td class="act">
+        <button class="btn xs sec" onclick='facturePDF("${f.id}")'>📄</button>
+        <button class="btn xs sec" onclick='editFacture("${f.id}")'>✏️</button>
+        <button class="btn xs dang" onclick='supprFacture("${f.id}")'>🗑️</button>
+      </td></tr>`; });
+  document.getElementById('comZone').innerHTML=`
+    <div class="barre-actions">
+      <button class="btn" onclick="editFacture()">➕ Nouvelle facture</button>
+      <button class="btn sec" onclick="editFacture(null,'bl')">➕ Bon de livraison</button>
+      <span class="spacer"></span>
+    </div>
+    <div class="tbl-wrap"><table class="data"><thead><tr>
+      <th>N° / type</th><th>Date</th><th>Client</th><th class="num">Total HT</th><th class="num">Total TTC</th><th>Statut</th><th></th>
+    </tr></thead><tbody>${rows||'<tr><td colspan="7"><div class="vide"><span class="em">🧾</span>Aucune facture.</div></td></tr>'}</tbody></table></div>`;
+}
+async function editFacture(id, forceType){
+  const clients=await dbTout('clients');
+  if(!clients.length){ toast('Créez d\'abord un client.','info'); ETAT._ongletCom='clients'; renderCommercial(document.getElementById('vue')); return; }
+  const cotations=await dbTout('cotations');
+  const f=id?await dbGet('factures',id):{type:forceType==='bl'?'bl':'facture',date:todayISO(),statut:'brouillon',clientId:clients[0].id,
+    numero:forceType==='bl'?('BL'+genNumeroFacture().replace(PARAM.facturation.prefixe,'')):genNumeroFacture(),
+    echeance:ajouterJours(todayISO(),30),lignes:[{designation:'Œufs bio (code 0)',quantite:'',unite:'œuf',prixUnitaire:'',tva:PARAM.facturation.tvaTaux}]};
+  ETAT._factEdit=clone(f);
+  setModalLarge(true);
+  ouvrirModal(id?'Modifier':(f.type==='bl'?'Nouveau bon de livraison':'Nouvelle facture'),'', [
+    {texte:'Annuler',classe:'sec',action:()=>{setModalLarge(false);fermerModal();}},
+    {texte:'Enregistrer',action:()=>sauverFacture(id)}
+  ]);
+  renderFactureForm(clients);
+}
+function renderFactureForm(clients){
+  const f=ETAT._factEdit;
+  let lignes=f.lignes.map((l,i)=>`<tr>
+    <td><input type="text" value="${esc(l.designation)}" oninput="ETAT._factEdit.lignes[${i}].designation=this.value"></td>
+    <td><input type="number" style="width:90px" value="${l.quantite}" oninput="ETAT._factEdit.lignes[${i}].quantite=this.value;majTotFact()"></td>
+    <td><input type="text" style="width:70px" value="${esc(l.unite)}" oninput="ETAT._factEdit.lignes[${i}].unite=this.value"></td>
+    <td><input type="number" step="0.001" style="width:90px" value="${l.prixUnitaire}" oninput="ETAT._factEdit.lignes[${i}].prixUnitaire=this.value;majTotFact()"></td>
+    <td><input type="number" step="0.1" style="width:70px" value="${l.tva}" oninput="ETAT._factEdit.lignes[${i}].tva=this.value;majTotFact()"></td>
+    <td class="num" data-mtl="${i}">—</td>
+    <td><button class="btn xs dang" onclick="ETAT._factEdit.lignes.splice(${i},1);renderFactureFormReload()">✕</button></td>
+  </tr>`).join('');
+  document.getElementById('modalBody').innerHTML=`
+    <div class="form-grid">
+      <label class="champ"><span>Numéro</span><input type="text" id="fa_num" value="${esc(f.numero)}" oninput="ETAT._factEdit.numero=this.value"></label>
+      <label class="champ"><span>Type</span><select id="fa_type" onchange="ETAT._factEdit.type=this.value">
+        <option value="facture" ${f.type==='facture'?'selected':''}>Facture</option><option value="bl" ${f.type==='bl'?'selected':''}>Bon de livraison</option></select></label>
+      <label class="champ"><span>Date</span><input type="date" id="fa_date" value="${f.date}" oninput="ETAT._factEdit.date=this.value"></label>
+      <label class="champ"><span>Échéance</span><input type="date" id="fa_ech" value="${f.echeance||''}" oninput="ETAT._factEdit.echeance=this.value"></label>
+      <label class="champ"><span>Client</span><select id="fa_cli" onchange="ETAT._factEdit.clientId=this.value">${clients.map(c=>`<option value="${c.id}" ${f.clientId===c.id?'selected':''}>${esc(c.nom)}</option>`).join('')}</select></label>
+      <label class="champ"><span>Statut</span><select id="fa_stat" onchange="ETAT._factEdit.statut=this.value">
+        ${['brouillon','emise','payee'].map(s=>`<option value="${s}" ${f.statut===s?'selected':''}>${{brouillon:'Brouillon',emise:'Émise',payee:'Payée'}[s]}</option>`).join('')}</select></label>
+    </div>
+    <div class="section-titre" style="margin-top:6px"><span class="ic">📋</span><h2 style="font-size:15px">Lignes</h2></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>PU HT</th><th>TVA %</th><th class="num">Montant HT</th><th></th></tr></thead>
+    <tbody id="factLignes">${lignes}</tbody></table></div>
+    <button class="btn sm sec" style="margin-top:10px" onclick="ETAT._factEdit.lignes.push({designation:'',quantite:'',unite:'œuf',prixUnitaire:'',tva:${PARAM.facturation.tvaTaux}});renderFactureFormReload()">➕ Ajouter une ligne</button>
+    <div class="calc-live" id="fa_tot" style="margin-top:14px"></div>
+    <label class="champ" style="margin-top:8px"><span>Notes</span><textarea id="fa_notes" oninput="ETAT._factEdit.notes=this.value">${esc(f.notes||'')}</textarea></label>`;
+  majTotFact();
+}
+function renderFactureFormReload(){ dbTout('clients').then(renderFactureForm); }
+function majTotFact(){
+  const f=ETAT._factEdit; const t=totauxFacture(f);
+  f.lignes.forEach((l,i)=>{ const c=document.querySelector(`[data-mtl="${i}"]`); if(c) c.textContent=euro((+l.quantite||0)*(+l.prixUnitaire||0)); });
+  const box=document.getElementById('fa_tot'); if(box) box.innerHTML=`<div class="it">Total HT<b>${euro(t.ht)}</b></div><div class="it">TVA<b>${euro(t.tva)}</b></div><div class="it">Total TTC<b>${euro(t.ttc)}</b></div>`;
+}
+async function sauverFacture(id){
+  const f=ETAT._factEdit;
+  if(!f.numero){ toast('Numéro obligatoire.','err'); return; }
+  if(!f.lignes.length || !f.lignes.some(l=>+l.quantite>0)){ toast('Ajoutez au moins une ligne avec une quantité.','err'); return; }
+  f.lignes=f.lignes.map(l=>({...l,quantite:+l.quantite||0,prixUnitaire:+l.prixUnitaire||0,tva:+l.tva||0}));
+  f.id=id||uid();
+  await dbPut('factures',f);
+  // incrémenter le compteur si nouvelle facture utilisant le numéro courant
+  if(!id && f.type==='facture'){ PARAM.facturation.prochainNum=(PARAM.facturation.prochainNum||1)+1; await sauverParam('facturation'); }
+  setModalLarge(false); fermerModal(); toast('Document enregistré ✔','ok'); renderCommercial(document.getElementById('vue'));
+}
+function supprFacture(id){ confirmer('Supprimer ce document ?', async()=>{ await dbDel('factures',id); toast('Supprimé.','ok'); renderCommercial(document.getElementById('vue')); }); }
+async function facturePDF(id){
+  const doc=nouveauPDF(); if(!doc) return;
+  const f=await dbGet('factures',id); const client=await dbGet('clients',f.clientId); const t=totauxFacture(f);
+  const ex=PARAM.exploitation;
+  doc.setFontSize(16); doc.setFont(undefined,'bold'); doc.text(ex.nom,14,20);
+  doc.setFontSize(9); doc.setFont(undefined,'normal');
+  ex.adresse.split('\n').forEach((l,i)=>doc.text(l,14,26+i*4));
+  doc.text('SIRET '+ex.siret,14,26+ex.adresse.split('\n').length*4);
+  doc.text('N° cheptel '+ex.numeroCheptel+' · Code '+ex.codeElevage+' ('+codeElevageLib(ex.codeElevage)+')',14,30+ex.adresse.split('\n').length*4);
+  doc.setFontSize(18); doc.setFont(undefined,'bold'); doc.text(f.type==='bl'?'BON DE LIVRAISON':'FACTURE',196,22,{align:'right'});
+  doc.setFontSize(10); doc.setFont(undefined,'normal');
+  doc.text('N° '+f.numero,196,29,{align:'right'});
+  doc.text('Date : '+isoToFr(f.date),196,34,{align:'right'});
+  if(f.echeance&&f.type==='facture') doc.text('Échéance : '+isoToFr(f.echeance),196,39,{align:'right'});
+  // client
+  doc.setFont(undefined,'bold'); doc.text('Client',130,52); doc.setFont(undefined,'normal');
+  doc.text(client?.nom||'—',130,57);
+  (client?.adresse||'').split('\n').forEach((l,i)=>doc.text(l,130,62+i*4));
+  if(client?.siret) doc.text('SIRET '+client.siret,130,62+(client.adresse||'').split('\n').length*4);
+  // lignes
+  doc.autoTable({startY:82,head:[['Désignation','Qté','Unité','PU HT','TVA','Montant HT']],
+    body:f.lignes.map(l=>[l.designation,nbFmt(l.quantite),l.unite,euro(l.prixUnitaire,3),l.tva+' %',euro((+l.quantite)*(+l.prixUnitaire))]),
+    styles:{fontSize:9},headStyles:{fillColor:[31,122,77]},margin:{left:14,right:14},columnStyles:{1:{halign:'right'},3:{halign:'right'},5:{halign:'right'}}});
+  let y=doc.lastAutoTable.finalY+8;
+  const tot=(lib,val,bold)=>{ doc.setFont(undefined,bold?'bold':'normal'); doc.text(lib,150,y,{align:'right'}); doc.text(val,196,y,{align:'right'}); y+=6; };
+  if(f.type!=='bl'){ tot('Total HT',euro(t.ht)); tot('TVA',euro(t.tva)); tot('Total TTC',euro(t.ttc),true); }
+  else { doc.setFont(undefined,'bold'); doc.text('Total : '+nbFmt(f.lignes.reduce((s,l)=>s+(+l.quantite||0),0))+' unités',196,y,{align:'right'}); }
+  doc.setFontSize(7.5); doc.setFont(undefined,'normal');
+  if(f.notes) doc.text(f.notes,14,y+4);
+  if(f.type==='facture'){ doc.text(doc.splitTextToSize(PARAM.facturation.mentionBas,120),14,y+12); }
+  doc.save((f.type==='bl'?'BL_':'Facture_')+f.numero.replace(/\W+/g,'_')+'.pdf'); toast('PDF généré ✔','ok');
+}
+
+async function comClients(){
+  const clients=(await dbTout('clients')).sort((a,b)=>a.nom.localeCompare(b.nom));
+  let rows=clients.map(c=>`<tr>
+    <td><b>${esc(c.nom)}</b></td><td><span class="tag b">${esc(c.type||'')}</span></td>
+    <td>${esc(c.contact||'')}</td><td>${esc(c.tel||'')}</td><td>${esc(c.email||'')}</td><td>${esc(c.siret||'')}</td>
+    <td class="act"><button class="btn xs sec" onclick='editClient("${c.id}")'>✏️</button> <button class="btn xs dang" onclick='supprClient("${c.id}")'>🗑️</button></td>
+  </tr>`).join('');
+  document.getElementById('comZone').innerHTML=`
+    <div class="barre-actions"><button class="btn" onclick="editClient()">➕ Nouveau client</button></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr><th>Nom</th><th>Type</th><th>Contact</th><th>Tél</th><th>Email</th><th>SIRET</th><th></th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="7"><div class="vide"><span class="em">👥</span>Aucun client.</div></td></tr>'}</tbody></table></div>`;
+}
+async function editClient(id){
+  const c=id?await dbGet('clients',id):{type:'Centre de conditionnement'};
+  ouvrirModal(id?'Modifier le client':'Nouveau client',`
+    <label class="champ"><span>Nom / raison sociale *</span><input type="text" id="cl_nom" value="${esc(c.nom||'')}"></label>
+    <div class="form-grid">
+      <label class="champ"><span>Type</span><select id="cl_type">${['Centre de conditionnement','GMS','Grossiste','Vente directe','Restaurateur','Autre'].map(t=>`<option ${c.type===t?'selected':''}>${t}</option>`).join('')}</select></label>
+      <label class="champ"><span>SIRET</span><input type="text" id="cl_siret" value="${esc(c.siret||'')}"></label>
+      <label class="champ"><span>Contact</span><input type="text" id="cl_contact" value="${esc(c.contact||'')}"></label>
+      <label class="champ"><span>Téléphone</span><input type="tel" id="cl_tel" value="${esc(c.tel||'')}"></label>
+      <label class="champ"><span>Email</span><input type="email" id="cl_email" value="${esc(c.email||'')}"></label>
+    </div>
+    <label class="champ"><span>Adresse</span><textarea id="cl_adr">${esc(c.adresse||'')}</textarea></label>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Enregistrer',action:async()=>{
+    const nom=document.getElementById('cl_nom').value.trim(); if(!nom){ toast('Nom obligatoire.','err'); return; }
+    await dbPut('clients',{id:id||uid(),nom,type:document.getElementById('cl_type').value,siret:document.getElementById('cl_siret').value,
+      contact:document.getElementById('cl_contact').value,tel:document.getElementById('cl_tel').value,email:document.getElementById('cl_email').value,adresse:document.getElementById('cl_adr').value});
+    fermerModal(); toast('Client enregistré ✔','ok'); renderCommercial(document.getElementById('vue'));
+  }}]);
+}
+function supprClient(id){ confirmer('Supprimer ce client ?', async()=>{ await dbDel('clients',id); toast('Supprimé.','ok'); renderCommercial(document.getElementById('vue')); }); }
+
+async function comCotations(){
+  const cot=(await dbTout('cotations')).sort((a,b)=>b.date.localeCompare(a.date));
+  const calibres=[...new Set(cot.map(c=>c.calibre))];
+  const dates=[...new Set(cot.map(c=>c.date))].sort().slice(-8);
+  // tableau croisé date x calibre
+  let head=dates.map(d=>`<th class="num">${isoToFr(d)}</th>`).join('');
+  let rows=calibres.map(cal=>{
+    const cells=dates.map(d=>{ const c=cot.find(x=>x.date===d&&x.calibre===cal); return `<td class="num">${c?euro(c.prix):'—'}</td>`; }).join('');
+    return `<tr><td><b>${esc(cal)}</b></td>${cells}</tr>`;
+  }).join('');
+  document.getElementById('comZone').innerHTML=`
+    <div class="barre-actions">
+      <button class="btn" onclick="editCotation()">➕ Saisir une cotation</button>
+      <span class="spacer"></span>
+      <span class="mini">Prix indicatif au 100 œufs (mercuriale)</span>
+    </div>
+    <div class="card pad">
+      <div class="section-titre"><span class="ic">📈</span><h2>Évolution des cotations</h2></div>
+      <div class="chart-box sm"><canvas id="chCot"></canvas></div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:14px"><table class="data"><thead><tr><th>Calibre</th>${head}</tr></thead>
+    <tbody>${rows||'<tr><td colspan="9"><div class="vide"><span class="em">📈</span>Aucune cotation.</div></td></tr>'}</tbody></table></div>`;
+  if(typeof Chart!=='undefined' && dates.length){
+    const cols=['#1f7a4d','#e08b1e','#2b7bb9','#d9463c','#8a5a2b'];
+    CHARTS.cot=new Chart(document.getElementById('chCot'),{type:'line',data:{labels:dates.map(isoToFr),
+      datasets:calibres.map((cal,i)=>({label:cal,data:dates.map(d=>{const c=cot.find(x=>x.date===d&&x.calibre===cal);return c?c.prix:null;}),borderColor:cols[i%cols.length],tension:.3,spanGaps:true}))},
+      options:optChart({y:{ticks:{callback:v=>v+' €'}}})});
+  }
+}
+async function editCotation(){
+  ouvrirModal('Saisir une cotation',`
+    <div class="form-grid">
+      <label class="champ"><span>Date (semaine)</span><input type="date" id="co_date" value="${debutSemaine(todayISO())}"></label>
+      <label class="champ"><span>Calibre</span><select id="co_cal">${['Petit (S)','Moyen (M)','Gros (L)','Très gros (XL)'].map(c=>`<option>${c}</option>`).join('')}</select></label>
+      <label class="champ"><span>Prix (100 œufs) €</span><input type="number" step="0.01" id="co_prix" placeholder="ex. 11.20"></label>
+    </div>
+    <label class="champ"><span>Source</span><input type="text" id="co_src" value="Mercuriale bio hebdo"></label>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Enregistrer',action:async()=>{
+    const prix=document.getElementById('co_prix').value; if(prix===''){ toast('Prix obligatoire.','err'); return; }
+    await dbPut('cotations',{id:uid(),date:document.getElementById('co_date').value,calibre:document.getElementById('co_cal').value,prix:+prix,source:document.getElementById('co_src').value});
+    fermerModal(); toast('Cotation enregistrée ✔','ok'); renderCommercial(document.getElementById('vue'));
+  }}]);
+}
+async function comCA(){
+  const [factures,clients]=await Promise.all([dbTout('factures'),dbTout('clients')]);
+  const fact=factures.filter(f=>f.type==='facture');
+  // CA par mois (12 derniers)
+  const parMois={};
+  fact.forEach(f=>{ const m=f.date.slice(0,7); const t=totauxFacture(f); parMois[m]=(parMois[m]||0)+t.ht; });
+  const mois=Object.keys(parMois).sort().slice(-12);
+  const totalHT=fact.reduce((s,f)=>s+totauxFacture(f).ht,0);
+  const totalTTC=fact.reduce((s,f)=>s+totauxFacture(f).ttc,0);
+  const impaye=fact.filter(f=>f.statut!=='payee').reduce((s,f)=>s+totauxFacture(f).ttc,0);
+  const anneeEnCours=fact.filter(f=>f.date.slice(0,4)===String(new Date().getFullYear())).reduce((s,f)=>s+totauxFacture(f).ht,0);
+  document.getElementById('comZone').innerHTML=`
+    <div class="grid kpi" style="margin-bottom:16px">
+      <div class="kpi-card v"><div class="lib">CA HT ${new Date().getFullYear()}</div><div class="val">${euro(anneeEnCours,0)}</div></div>
+      <div class="kpi-card b"><div class="lib">CA HT total</div><div class="val">${euro(totalHT,0)}</div><div class="cmp">${euro(totalTTC,0)} TTC</div></div>
+      <div class="kpi-card o"><div class="lib">Restant à encaisser</div><div class="val">${euro(impaye,0)}</div></div>
+      <div class="kpi-card b"><div class="lib">Factures émises</div><div class="val">${fact.length}</div></div>
+    </div>
+    <div class="card pad">
+      <div class="section-titre"><span class="ic">💰</span><h2>Chiffre d'affaires mensuel (HT)</h2></div>
+      <div class="chart-box"><canvas id="chCA"></canvas></div>
+    </div>`;
+  if(typeof Chart!=='undefined' && mois.length){
+    CHARTS.ca=new Chart(document.getElementById('chCA'),{type:'bar',data:{labels:mois.map(m=>{const[a,mm]=m.split('-');return MOIS_FR[+mm-1]+' '+a.slice(2);}),
+      datasets:[{label:'CA HT',data:mois.map(m=>Math.round(parMois[m])),backgroundColor:'#1f7a4d'}]},
+      options:optChart({y:{ticks:{callback:v=>v+' €'}}})});
+  }
+}
+
+/* ===========================================================================
+   17. MODULE : STOCKS & ACHATS
+   =========================================================================== */
+async function renderStocks(vue){
+  document.getElementById('lotSelectBox').style.display='none';
+  const onglet=ETAT._ongletStk||'stocks';
+  vue.innerHTML=`
+    <div class="pilotes">
+      <button class="pilote ${onglet==='stocks'?'actif':''}" onclick="setOngletStk('stocks')">📦 Stocks</button>
+      <button class="pilote ${onglet==='achats'?'actif':''}" onclick="setOngletStk('achats')">🧾 Achats / factures fournisseur</button>
+      <button class="pilote ${onglet==='fournisseurs'?'actif':''}" onclick="setOngletStk('fournisseurs')">🚚 Fournisseurs</button>
+    </div>
+    <div id="stkZone"></div>`;
+  if(onglet==='stocks') await stkStocks();
+  else if(onglet==='achats') await stkAchats();
+  else await stkFournisseurs();
+}
+function setOngletStk(o){ ETAT._ongletStk=o; renderStocks(document.getElementById('vue')); }
+async function stkStocks(){
+  const [stocks,fourn]=await Promise.all([dbTout('stocks'),dbTout('fournisseurs')]);
+  const nomF=id=>fourn.find(f=>f.id===id)?.nom||'—';
+  let rows=stocks.map(s=>{ const bas=s.seuilAlerte>0&&s.quantite<=s.seuilAlerte;
+    return `<tr>
+    <td><b>${esc(s.designation)}</b></td><td><span class="tag ${s.categorie==='Aliment'?'v':'b'}">${esc(s.categorie)}</span></td>
+    <td class="num">${nbFmt(s.quantite)} ${esc(s.unite)}</td>
+    <td class="num">${nbFmt(s.seuilAlerte)}</td>
+    <td class="num">${euro(s.prixUnitaire,3)}</td>
+    <td class="num">${euro(s.quantite*s.prixUnitaire,0)}</td>
+    <td>${bas?`<span class="tag r">⚠️ À commander</span>`:`<span class="tag v">OK</span>`}</td>
+    <td class="act">
+      <button class="btn xs sec" onclick='mvtStock("${s.id}")'>±</button>
+      <button class="btn xs sec" onclick='editStock("${s.id}")'>✏️</button>
+      <button class="btn xs dang" onclick='supprStock("${s.id}")'>🗑️</button>
+      ${bas?`<button class="btn xs" onclick='bonCommande("${s.id}")'>🛒</button>`:''}
+    </td></tr>`; }).join('');
+  const valTot=stocks.reduce((s,x)=>s+x.quantite*x.prixUnitaire,0);
+  document.getElementById('stkZone').innerHTML=`
+    <div class="barre-actions"><button class="btn" onclick="editStock()">➕ Nouvel article</button><span class="spacer"></span>
+      <span class="mini">Valeur du stock : <b>${euro(valTot,0)}</b></span></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr>
+      <th>Désignation</th><th>Catégorie</th><th class="num">Quantité</th><th class="num">Seuil</th><th class="num">PU</th><th class="num">Valeur</th><th>État</th><th></th>
+    </tr></thead><tbody>${rows||'<tr><td colspan="8"><div class="vide"><span class="em">📦</span>Aucun article.</div></td></tr>'}</tbody></table></div>`;
+}
+async function editStock(id){
+  const fourn=await dbTout('fournisseurs');
+  const s=id?await dbGet('stocks',id):{categorie:'Aliment',unite:'kg',seuilAlerte:0,quantite:0,prixUnitaire:0};
+  ouvrirModal(id?'Modifier l\'article':'Nouvel article',`
+    <label class="champ"><span>Désignation *</span><input type="text" id="st_des" value="${esc(s.designation||'')}"></label>
+    <div class="form-grid">
+      <label class="champ"><span>Catégorie</span><select id="st_cat">${['Aliment','Emballage','Litière','Produit sanitaire','Autre'].map(c=>`<option ${s.categorie===c?'selected':''}>${c}</option>`).join('')}</select></label>
+      <label class="champ"><span>Unité</span><input type="text" id="st_unite" value="${esc(s.unite||'')}"></label>
+      <label class="champ"><span>Quantité en stock</span><input type="number" step="0.01" id="st_qte" value="${s.quantite??0}"></label>
+      <label class="champ"><span>Seuil d'alerte</span><input type="number" step="0.01" id="st_seuil" value="${s.seuilAlerte??0}"></label>
+      <label class="champ"><span>Prix unitaire (€)</span><input type="number" step="0.001" id="st_pu" value="${s.prixUnitaire??0}"></label>
+      <label class="champ"><span>Fournisseur</span><select id="st_four"><option value="">—</option>${fourn.map(f=>`<option value="${f.id}" ${s.fournisseurId===f.id?'selected':''}>${esc(f.nom)}</option>`).join('')}</select></label>
+    </div>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Enregistrer',action:async()=>{
+    const des=document.getElementById('st_des').value.trim(); if(!des){ toast('Désignation obligatoire.','err'); return; }
+    await dbPut('stocks',{id:id||uid(),designation:des,categorie:document.getElementById('st_cat').value,unite:document.getElementById('st_unite').value,
+      quantite:+document.getElementById('st_qte').value||0,seuilAlerte:+document.getElementById('st_seuil').value||0,
+      prixUnitaire:+document.getElementById('st_pu').value||0,fournisseurId:document.getElementById('st_four').value});
+    fermerModal(); toast('Article enregistré ✔','ok'); await calculerAlertes(); renderStocks(document.getElementById('vue'));
+  }}]);
+}
+async function mvtStock(id){
+  const s=await dbGet('stocks',id);
+  ouvrirModal('Mouvement de stock — '+esc(s.designation),`
+    <div class="mini" style="margin-bottom:10px">Stock actuel : <b>${nbFmt(s.quantite)} ${esc(s.unite)}</b></div>
+    <div class="form-grid">
+      <label class="champ"><span>Type</span><select id="ms_type"><option value="entree">Entrée (+)</option><option value="sortie">Sortie / consommation (−)</option></select></label>
+      <label class="champ"><span>Quantité (${esc(s.unite)})</span><input type="number" step="0.01" id="ms_qte" min="0"></label>
+      <label class="champ"><span>Date</span><input type="date" id="ms_date" value="${todayISO()}"></label>
+    </div>
+    <label class="champ"><span>Motif</span><input type="text" id="ms_motif"></label>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Valider',action:async()=>{
+    const q=+document.getElementById('ms_qte').value; if(!(q>0)){ toast('Quantité invalide.','err'); return; }
+    const type=document.getElementById('ms_type').value;
+    s.quantite += (type==='entree'?q:-q); s.quantite=Math.max(0,Math.round(s.quantite*1000)/1000);
+    await dbPut('stocks',s);
+    await dbPut('mvtStock',{id:uid(),stockId:id,date:document.getElementById('ms_date').value,type,quantite:q,motif:document.getElementById('ms_motif').value});
+    fermerModal(); toast('Stock mis à jour ✔','ok'); await calculerAlertes(); renderStocks(document.getElementById('vue'));
+  }}]);
+}
+function supprStock(id){ confirmer('Supprimer cet article ?', async()=>{ await dbDel('stocks',id); toast('Supprimé.','ok'); await calculerAlertes(); renderStocks(document.getElementById('vue')); }); }
+async function bonCommande(id){
+  const s=await dbGet('stocks',id); const fourn=s.fournisseurId?await dbGet('fournisseurs',s.fournisseurId):null;
+  const qteSugg=Math.max(s.seuilAlerte*2-s.quantite, s.seuilAlerte);
+  const doc=nouveauPDF(); if(!doc) return;
+  let y=enteteExploitationPDF(doc,'Bon de commande');
+  doc.setFontSize(10);
+  doc.text('Fournisseur : '+(fourn?fourn.nom:'—'),14,y); y+=5;
+  if(fourn){ doc.text(esc(fourn.adresse||''),14,y); y+=5; }
+  doc.text('Date : '+isoToFr(todayISO()),14,y); y+=6;
+  doc.autoTable({startY:y,head:[['Article','Quantité','Unité','PU estimé','Total estimé']],
+    body:[[s.designation,nbFmt(qteSugg),s.unite,euro(s.prixUnitaire,3),euro(qteSugg*s.prixUnitaire)]],
+    styles:{fontSize:9},headStyles:{fillColor:[31,122,77]},margin:{left:14,right:14}});
+  doc.save('Bon_commande_'+s.designation.replace(/\W+/g,'_')+'.pdf'); toast('Bon de commande généré ✔','ok');
+}
+async function stkAchats(){
+  const [achats,fourn]=await Promise.all([dbTout('achats'),dbTout('fournisseurs')]);
+  achats.sort((a,b)=>b.date.localeCompare(a.date));
+  const nomF=id=>fourn.find(f=>f.id===id)?.nom||'—';
+  const montant=a=>(a.lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prixUnitaire||0),0);
+  let rows=achats.map(a=>`<tr>
+    <td>${isoToFr(a.date)}</td><td>${esc(a.numero||'')}</td><td>${esc(nomF(a.fournisseurId))}</td>
+    <td>${(a.lignes||[]).map(l=>esc(l.designation)).join(', ')}</td>
+    <td class="num">${euro(montant(a))}</td>
+    <td class="act"><button class="btn xs dang" onclick='supprAchat("${a.id}")'>🗑️</button></td>
+  </tr>`).join('');
+  const total=achats.reduce((s,a)=>s+montant(a),0);
+  document.getElementById('stkZone').innerHTML=`
+    <div class="barre-actions"><button class="btn" onclick="editAchat()">➕ Saisir un achat</button><span class="spacer"></span><span class="mini">Total achats : <b>${euro(total,0)}</b></span></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr><th>Date</th><th>N°</th><th>Fournisseur</th><th>Articles</th><th class="num">Montant HT</th><th></th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="6"><div class="vide"><span class="em">🧾</span>Aucun achat.</div></td></tr>'}</tbody></table></div>`;
+}
+async function editAchat(){
+  const [fourn,stocks]=await Promise.all([dbTout('fournisseurs'),dbTout('stocks')]);
+  if(!fourn.length){ toast('Créez d\'abord un fournisseur.','info'); ETAT._ongletStk='fournisseurs'; renderStocks(document.getElementById('vue')); return; }
+  ouvrirModal('Saisir un achat',`
+    <div class="form-grid">
+      <label class="champ"><span>Date</span><input type="date" id="ac_date" value="${todayISO()}"></label>
+      <label class="champ"><span>Fournisseur</span><select id="ac_four">${fourn.map(f=>`<option value="${f.id}">${esc(f.nom)}</option>`).join('')}</select></label>
+      <label class="champ"><span>N° facture/BL</span><input type="text" id="ac_num"></label>
+    </div>
+    <label class="champ"><span>Article (relié au stock, optionnel)</span><select id="ac_stock"><option value="">— libre —</option>${stocks.map(s=>`<option value="${s.id}">${esc(s.designation)}</option>`).join('')}</select></label>
+    <div class="form-grid">
+      <label class="champ"><span>Désignation</span><input type="text" id="ac_des" placeholder="ex. Aliment ponte bio"></label>
+      <label class="champ"><span>Quantité</span><input type="number" step="0.01" id="ac_qte"></label>
+      <label class="champ"><span>Unité</span><input type="text" id="ac_unite" value="kg"></label>
+      <label class="champ"><span>PU HT</span><input type="number" step="0.001" id="ac_pu"></label>
+    </div>
+    <label class="champ" style="margin-top:6px"><input type="checkbox" id="ac_maj" checked style="width:auto"> <span style="display:inline">Incrémenter le stock relié</span></label>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Enregistrer',action:async()=>{
+    const qte=+document.getElementById('ac_qte').value||0, pu=+document.getElementById('ac_pu').value||0;
+    const stockId=document.getElementById('ac_stock').value;
+    let des=document.getElementById('ac_des').value;
+    if(!des && stockId){ const s=stocks.find(x=>x.id===stockId); des=s?s.designation:''; }
+    if(!des){ toast('Désignation obligatoire.','err'); return; }
+    await dbPut('achats',{id:uid(),date:document.getElementById('ac_date').value,fournisseurId:document.getElementById('ac_four').value,
+      numero:document.getElementById('ac_num').value,lignes:[{stockId,designation:des,quantite:qte,unite:document.getElementById('ac_unite').value,prixUnitaire:pu,tva:10}]});
+    if(stockId && document.getElementById('ac_maj').checked && qte>0){ const s=await dbGet('stocks',stockId); s.quantite+=qte; if(pu>0) s.prixUnitaire=pu; await dbPut('stocks',s);
+      await dbPut('mvtStock',{id:uid(),stockId,date:document.getElementById('ac_date').value,type:'entree',quantite:qte,motif:'Achat'}); }
+    fermerModal(); toast('Achat enregistré ✔','ok'); await calculerAlertes(); renderStocks(document.getElementById('vue'));
+  }}]);
+}
+function supprAchat(id){ confirmer('Supprimer cet achat ?', async()=>{ await dbDel('achats',id); toast('Supprimé.','ok'); renderStocks(document.getElementById('vue')); }); }
+async function stkFournisseurs(){
+  const fourn=(await dbTout('fournisseurs')).sort((a,b)=>a.nom.localeCompare(b.nom));
+  let rows=fourn.map(f=>`<tr>
+    <td><b>${esc(f.nom)}</b></td><td>${esc(f.type||'')}</td><td>${esc(f.contact||'')}</td><td>${esc(f.tel||'')}</td><td>${esc(f.email||'')}</td><td>${esc(f.produits||'')}</td>
+    <td class="act"><button class="btn xs sec" onclick='editFournisseur("${f.id}")'>✏️</button> <button class="btn xs dang" onclick='supprFournisseur("${f.id}")'>🗑️</button></td>
+  </tr>`).join('');
+  document.getElementById('stkZone').innerHTML=`
+    <div class="barre-actions"><button class="btn" onclick="editFournisseur()">➕ Nouveau fournisseur</button></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr><th>Nom</th><th>Type</th><th>Contact</th><th>Tél</th><th>Email</th><th>Produits</th><th></th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="7"><div class="vide"><span class="em">🚚</span>Aucun fournisseur.</div></td></tr>'}</tbody></table></div>`;
+}
+async function editFournisseur(id){
+  const f=id?await dbGet('fournisseurs',id):{type:'Aliment'};
+  ouvrirModal(id?'Modifier':'Nouveau fournisseur',`
+    <label class="champ"><span>Nom *</span><input type="text" id="fo_nom" value="${esc(f.nom||'')}"></label>
+    <div class="form-grid">
+      <label class="champ"><span>Type</span><select id="fo_type">${['Aliment','Emballage','Vétérinaire','Litière','Matériel','Autre'].map(t=>`<option ${f.type===t?'selected':''}>${t}</option>`).join('')}</select></label>
+      <label class="champ"><span>Contact</span><input type="text" id="fo_contact" value="${esc(f.contact||'')}"></label>
+      <label class="champ"><span>Téléphone</span><input type="tel" id="fo_tel" value="${esc(f.tel||'')}"></label>
+      <label class="champ"><span>Email</span><input type="email" id="fo_email" value="${esc(f.email||'')}"></label>
+    </div>
+    <label class="champ"><span>Adresse</span><input type="text" id="fo_adr" value="${esc(f.adresse||'')}"></label>
+    <label class="champ"><span>Produits fournis</span><input type="text" id="fo_prod" value="${esc(f.produits||'')}"></label>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Enregistrer',action:async()=>{
+    const nom=document.getElementById('fo_nom').value.trim(); if(!nom){ toast('Nom obligatoire.','err'); return; }
+    await dbPut('fournisseurs',{id:id||uid(),nom,type:document.getElementById('fo_type').value,contact:document.getElementById('fo_contact').value,
+      tel:document.getElementById('fo_tel').value,email:document.getElementById('fo_email').value,adresse:document.getElementById('fo_adr').value,produits:document.getElementById('fo_prod').value});
+    fermerModal(); toast('Fournisseur enregistré ✔','ok'); renderStocks(document.getElementById('vue'));
+  }}]);
+}
+function supprFournisseur(id){ confirmer('Supprimer ce fournisseur ?', async()=>{ await dbDel('fournisseurs',id); toast('Supprimé.','ok'); renderStocks(document.getElementById('vue')); }); }
+
+/* ===========================================================================
+   18. MODULE : INDICATEURS ÉCONOMIQUES
+   Coût de revient par œuf, marge par lot et globale.
+   =========================================================================== */
+async function renderEconomie(vue){
+  majSelectLot(true); document.getElementById('lotSelect').value=ETAT.lotCourant;
+  const periode = ETAT._ecoPeriode || 30;
+  const [prods,mvts,charges,stocks,factures,cotations]=await Promise.all([dbTout('production'),dbTout('mouvements'),dbTout('charges'),dbTout('stocks'),dbTout('factures'),dbTout('cotations')]);
+  const depuis=ajouterJours(todayISO(),-periode);
+  const lotsSel = ETAT.lotCourant==='tous'? ETAT.lots : ETAT.lots.filter(l=>l.id===ETAT.lotCourant);
+  const prixAliment = (stocks.find(s=>s.categorie==='Aliment')?.prixUnitaire) || 0.52;
+
+  // Agrégats sur la période
+  let oeufs=0, alimKg=0;
+  lotsSel.forEach(lot=>{ prods.filter(p=>p.lotId===lot.id && p.date>=depuis).forEach(p=>{ oeufs+=p.oeufsPondus||0; alimKg+=p.consoAliment||0; }); });
+  const coutAliment = alimKg*prixAliment;
+  // charges de la période (hors aliment). Réparties si lot 'tous', sinon on prend part proportionnelle par œufs.
+  const chargesPeriode = charges.filter(c=>c.date>=depuis && (c.categorie!=='Aliment'));
+  // Charges de la période (hors aliment) :
+  //  - vue "tous les lots" : on prend toutes les charges (globales + par lot) ;
+  //  - lot précis : ses charges propres + une QUOTE-PART des charges globales ('tous'),
+  //    répartie au prorata des œufs produits par ce lot (cohérent avec le tableau "Marge par lot").
+  const oeufsTotPeriode = oeufsTousLots(prods, depuis);
+  const partOeufs = (ETAT.lotCourant!=='tous' && oeufsTotPeriode>0) ? oeufs/oeufsTotPeriode : 1;
+  const coutCharges = chargesPeriode.reduce((s,c)=>{
+    if(ETAT.lotCourant==='tous') return s + c.montant;              // tout compté
+    if(c.lotId===ETAT.lotCourant) return s + c.montant;             // charge propre au lot
+    if(c.lotId==='tous') return s + c.montant*partOeufs;            // quote-part des charges globales
+    return s;                                                        // charge d'un autre lot : ignorée
+  },0);
+  const coutTotal = coutAliment + coutCharges;
+  const coutParOeuf = oeufs>0? coutTotal/oeufs : null;
+  // Montant d'une catégorie de charge, avec la même règle d'affectation que coutCharges.
+  const chargeCat = cat => chargesPeriode.filter(c=>c.categorie===cat).reduce((s,c)=>{
+    if(ETAT.lotCourant==='tous' || c.lotId===ETAT.lotCourant) return s + c.montant;
+    if(c.lotId==='tous') return s + c.montant*partOeufs;
+    return s;
+  },0);
+  const categoriesCharge = [...new Set(chargesPeriode.map(c=>c.categorie))];
+
+  // Prix de vente moyen (à partir des factures de la période)
+  const factP=factures.filter(f=>f.type==='facture' && f.date>=depuis);
+  let caHT=0, oeufsVendus=0;
+  factP.forEach(f=>{ (f.lignes||[]).forEach(l=>{ caHT+=(+l.quantite||0)*(+l.prixUnitaire||0); if((l.unite||'').includes('œuf')||(l.unite||'').includes('oeuf')) oeufsVendus+=(+l.quantite||0); }); });
+  const prixVenteMoyen = oeufsVendus>0? caHT/oeufsVendus : (cotations.length? (cotations.slice(-4).reduce((s,c)=>s+c.prix,0)/Math.min(4,cotations.length))/100 : null);
+  const margeParOeuf = (prixVenteMoyen!=null && coutParOeuf!=null)? prixVenteMoyen-coutParOeuf : null;
+  const margeGlobale = margeParOeuf!=null? margeParOeuf*oeufs : null;
+
+  const clsMarge = margeParOeuf==null?'':(margeParOeuf>0?'v':'r');
+  vue.innerHTML=`
+    <div class="filtre-bar">
+      <label class="champ"><span>Période</span><select id="ecoPer" onchange="ETAT._ecoPeriode=+this.value;renderEconomie(document.getElementById('vue'))">
+        ${[30,60,90,180,365].map(d=>`<option value="${d}" ${periode==d?'selected':''}>${d} derniers jours</option>`).join('')}</select></label>
+      <span class="mini" style="margin-left:auto">Prix aliment utilisé : <b>${euro(prixAliment,3)}/kg</b> · modifiable dans Stocks</span>
+    </div>
+    <div class="grid kpi" style="margin-bottom:16px">
+      <div class="kpi-card b"><div class="lib">🥚 Œufs produits</div><div class="val">${nbFmt(oeufs)}</div><div class="cmp">${nbFmt(alimKg,0)} kg d'aliment</div></div>
+      <div class="kpi-card o"><div class="lib">💰 Coût de revient / œuf</div><div class="val">${coutParOeuf!=null?euro(coutParOeuf,4):'—'}</div><div class="cmp">soit ${coutParOeuf!=null?euro(coutParOeuf*100,2)+' /100 œufs':'—'}</div></div>
+      <div class="kpi-card b"><div class="lib">🏷️ Prix de vente moyen / œuf</div><div class="val">${prixVenteMoyen!=null?euro(prixVenteMoyen,4):'—'}</div><div class="cmp">${oeufsVendus>0?nbFmt(oeufsVendus)+' œufs facturés':'estimé mercuriale'}</div></div>
+      <div class="kpi-card ${clsMarge}"><div class="lib">📊 Marge / œuf</div><div class="val">${margeParOeuf!=null?euro(margeParOeuf,4):'—'}</div><div class="cmp">Marge période ≈ ${margeGlobale!=null?euro(margeGlobale,0):'—'}</div></div>
+    </div>
+    <div class="grid c2" style="align-items:start">
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">🧮</span><h2>Décomposition du coût (${periode} j)</h2></div>
+        <div class="chart-box sm"><canvas id="chCout"></canvas></div>
+        <table class="data" style="margin-top:12px"><tbody>
+          <tr><td>Aliment (${nbFmt(alimKg,0)} kg × ${euro(prixAliment,3)})</td><td class="num">${euro(coutAliment,0)}</td></tr>
+          ${categoriesCharge.map(cat=>{ const m=chargeCat(cat); return m?`<tr><td>${esc(cat)}</td><td class="num">${euro(m,0)}</td></tr>`:''; }).join('')}
+          <tr class="tfoot"><td>Coût total</td><td class="num">${euro(coutTotal,0)}</td></tr>
+        </tbody></table>
+      </div>
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">🏠</span><h2>Marge par lot</h2></div>
+        <div class="tbl-wrap" id="ecoLots"></div>
+        <div class="barre-actions" style="margin-top:14px">
+          <button class="btn sm" onclick="editCharge()">➕ Saisir une charge</button>
+          <button class="btn sm sec" onclick="exportEcoExcel()">⬇️ Excel</button>
+        </div>
+        <div id="listeCharges"></div>
+      </div>
+    </div>`;
+  // graphique coûts
+  if(typeof Chart!=='undefined'){
+    const cats=['Aliment',...categoriesCharge];
+    const vals=[coutAliment,...categoriesCharge.map(cat=>chargeCat(cat))];
+    CHARTS.cout=new Chart(document.getElementById('chCout'),{type:'doughnut',data:{labels:cats,datasets:[{data:vals.map(v=>Math.round(v)),backgroundColor:['#c9971f','#1f7a4d','#2b7bb9','#d9463c','#8a5a2b','#e08b1e']}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}}}}});
+  }
+  // marge par lot
+  let rows='';
+  ETAT.lots.forEach(lot=>{
+    let o=0,a=0; prods.filter(p=>p.lotId===lot.id && p.date>=depuis).forEach(p=>{ o+=p.oeufsPondus||0; a+=p.consoAliment||0; });
+    if(o===0){ rows+=`<tr><td>${esc(lot.nom)}</td><td class="num">0</td><td class="num">—</td><td class="num">—</td></tr>`; return; }
+    const chLot=chargesPeriode.reduce((s,c)=>s+(c.lotId===lot.id?c.montant:(c.lotId==='tous'? c.montant*(o/Math.max(1,oeufsTousLots(prods,depuis))):0)),0);
+    const cout=a*prixAliment+chLot; const cpo=cout/o;
+    const marge=prixVenteMoyen!=null?(prixVenteMoyen-cpo):null;
+    rows+=`<tr><td><b>${esc(lot.nom)}</b></td><td class="num">${nbFmt(o)}</td><td class="num">${euro(cpo,4)}</td><td class="num"><span class="tag ${marge==null?'g':marge>0?'v':'r'}">${marge!=null?euro(marge,4):'—'}</span></td></tr>`;
+  });
+  document.getElementById('ecoLots').innerHTML=`<table class="data"><thead><tr><th>Lot</th><th class="num">Œufs</th><th class="num">Coût/œuf</th><th class="num">Marge/œuf</th></tr></thead><tbody>${rows}</tbody></table>`;
+  // liste charges
+  const chToutes=charges.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12);
+  document.getElementById('listeCharges').innerHTML=`<div class="section-titre" style="margin-top:14px"><span class="ic">📋</span><h2 style="font-size:14px">Charges saisies</h2></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr><th>Date</th><th>Catégorie</th><th>Libellé</th><th>Lot</th><th class="num">Montant</th><th></th></tr></thead><tbody>
+    ${chToutes.map(c=>`<tr><td>${isoToFr(c.date)}</td><td>${esc(c.categorie)}</td><td>${esc(c.libelle)}</td><td>${libLot(c.lotId)}</td><td class="num">${euro(c.montant)}</td><td class="act"><button class="btn xs dang" onclick='supprCharge("${c.id}")'>🗑️</button></td></tr>`).join('')||'<tr><td colspan="6"><div class="vide mini">Aucune charge saisie.</div></td></tr>'}
+    </tbody></table></div>`;
+  document.getElementById('lotSelect').onchange=e=>{ ETAT.lotCourant=e.target.value; renderEconomie(vue); };
+}
+function oeufsTousLots(prods,depuis){ return prods.filter(p=>p.date>=depuis).reduce((s,p)=>s+(p.oeufsPondus||0),0); }
+async function editCharge(){
+  ouvrirModal('Saisir une charge',`
+    <div class="form-grid">
+      <label class="champ"><span>Date</span><input type="date" id="ch_date" value="${todayISO()}"></label>
+      <label class="champ"><span>Catégorie</span><select id="ch_cat">${['Énergie','Main d\'œuvre','Vétérinaire','Emballage','Amortissement','Litière','Assurance','Autre'].map(c=>`<option>${c}</option>`).join('')}</select></label>
+      <label class="champ"><span>Lot</span><select id="ch_lot"><option value="tous">Tous (réparti)</option>${ETAT.lots.map(l=>`<option value="${l.id}">${esc(l.nom)}</option>`).join('')}</select></label>
+      <label class="champ"><span>Montant (€)</span><input type="number" step="0.01" id="ch_mt"></label>
+    </div>
+    <label class="champ"><span>Libellé</span><input type="text" id="ch_lib"></label>`,
+  [{texte:'Annuler',classe:'sec',action:fermerModal},{texte:'Enregistrer',action:async()=>{
+    const mt=+document.getElementById('ch_mt').value; if(!(mt>0)){ toast('Montant invalide.','err'); return; }
+    await dbPut('charges',{id:uid(),date:document.getElementById('ch_date').value,categorie:document.getElementById('ch_cat').value,lotId:document.getElementById('ch_lot').value,montant:mt,libelle:document.getElementById('ch_lib').value});
+    fermerModal(); toast('Charge enregistrée ✔','ok'); renderEconomie(document.getElementById('vue'));
+  }}]);
+}
+function supprCharge(id){ confirmer('Supprimer cette charge ?', async()=>{ await dbDel('charges',id); toast('Supprimé.','ok'); renderEconomie(document.getElementById('vue')); }); }
+async function exportEcoExcel(){
+  const charges=await dbTout('charges');
+  exporterExcel(charges.map(c=>({Date:isoToFr(c.date),Catégorie:c.categorie,Libellé:c.libelle,Lot:libLot(c.lotId),Montant:c.montant})),'Charges_economie','Charges');
+}
+
+/* ===========================================================================
+   19. MODULE : EXPORT / SAUVEGARDE
+   =========================================================================== */
+async function renderSauvegarde(vue){
+  document.getElementById('lotSelectBox').style.display='none';
+  let compte={};
+  for(const s of Object.keys(STORES)){ if(s!=='parametres') compte[s]=(await dbTout(s)).length; }
+  vue.innerHTML=`
+    <div class="grid c2" style="align-items:start">
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">💾</span><h2>Sauvegarde complète (JSON)</h2></div>
+        <p class="mini" style="margin-bottom:12px">Exporte l'intégralité de vos données dans un fichier JSON à conserver (disque dur, clé USB). Aucune donnée ne quitte votre ordinateur.</p>
+        <button class="btn" onclick="exportJSON()">⬇️ Exporter toutes les données (JSON)</button>
+        <div class="section-titre" style="margin-top:22px"><span class="ic">♻️</span><h2>Restauration</h2></div>
+        <div class="alerte o"><span class="ic">⚠️</span><div>La restauration <b>remplace</b> toutes les données actuelles.</div></div>
+        <input type="file" id="fileJSON" accept="application/json" style="margin-bottom:10px">
+        <div><button class="btn sec" onclick="importJSON()">♻️ Restaurer depuis un fichier JSON</button></div>
+      </div>
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">📊</span><h2>Exports par module</h2></div>
+        <div class="grid c2">
+          <button class="btn sec" onclick="exportGlobalExcel()">⬇️ Excel — toutes les tables</button>
+          <button class="btn sec" onclick="aller('production').then(()=>exportProdExcel())">🥚 Production (Excel)</button>
+          <button class="btn sec" onclick="exportRegistrePDF()">📒 Registre (PDF DDPP)</button>
+          <button class="btn sec" onclick="exportSanitaireExcel()">💉 Sanitaire (Excel)</button>
+        </div>
+        <div class="section-titre" style="margin-top:22px"><span class="ic">🗃️</span><h2>Contenu de la base</h2></div>
+        <div class="tbl-wrap"><table class="data"><tbody>
+          ${Object.entries(compte).map(([k,v])=>`<tr><td>${libStore(k)}</td><td class="num">${nbFmt(v)}</td></tr>`).join('')}
+        </tbody></table></div>
+        <div class="section-titre" style="margin-top:22px"><span class="ic">🧹</span><h2>Réinitialisation</h2></div>
+        <button class="btn dang" onclick="reinitTout()">🗑️ Tout effacer</button>
+        <button class="btn sec" onclick="rechargerDemo()">🌱 Recharger les données de démo</button>
+      </div>
+    </div>`;
+}
+function libStore(k){ return {lots:'Lots',production:'Saisies production',mouvements:'Mouvements (registre)',traitements:'Traitements vét.',sanitaire:'Suivi sanitaire',clients:'Clients',factures:'Factures / BL',cotations:'Cotations',fournisseurs:'Fournisseurs',stocks:'Articles stock',mvtStock:'Mouvements stock',achats:'Achats',charges:'Charges'}[k]||k; }
+async function exportJSON(){
+  const data={_meta:{app:'GestionAvicole',version:1,export:new Date().toISOString()}};
+  for(const s of Object.keys(STORES)) data[s]=await dbTout(s);
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sauvegarde_avicole_'+todayISO()+'.json'; a.click();
+  URL.revokeObjectURL(a.href); toast('Sauvegarde JSON exportée ✔','ok');
+}
+function importJSON(){
+  const f=document.getElementById('fileJSON').files[0];
+  if(!f){ toast('Sélectionnez un fichier JSON.','info'); return; }
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.lots && !data.production){ toast('Fichier non reconnu.','err'); return; }
+      confirmer('Remplacer toutes les données actuelles par le contenu du fichier ?', async()=>{
+        for(const s of Object.keys(STORES)){ await dbClear(s); if(Array.isArray(data[s])){ for(const row of data[s]) await dbPut(s,row); } }
+        await chargerParametres(); ETAT.lots=await dbTout('lots'); ETAT.lotCourant=ETAT.lots[0]?.id||'tous';
+        toast('Données restaurées ✔','ok'); await calculerAlertes(); aller('dashboard');
+      });
+    }catch(err){ toast('Erreur de lecture : '+err.message,'err'); }
+  };
+  reader.readAsText(f);
+}
+async function exportGlobalExcel(){
+  if(typeof XLSX==='undefined'){ toast('Export Excel indisponible.','err'); return; }
+  const wb=XLSX.utils.book_new();
+  for(const s of Object.keys(STORES)){ if(s==='parametres') continue; const rows=await dbTout(s); if(rows.length){ const ws=XLSX.utils.json_to_sheet(rows); XLSX.utils.book_append_sheet(wb,ws,nomFeuilleValide(libStore(s))); } }
+  XLSX.writeFile(wb,'export_complet_avicole_'+todayISO()+'.xlsx'); toast('Export Excel complet généré ✔','ok');
+}
+function reinitTout(){ confirmer('⚠️ Effacer DÉFINITIVEMENT toutes les données ?', async()=>{ for(const s of Object.keys(STORES)) await dbClear(s); PARAM=clone(PARAM_DEFAUT); ETAT.lots=[]; ETAT.lotCourant='tous'; toast('Base réinitialisée.','ok'); location.reload(); },{txtOui:'Tout effacer'}); }
+function rechargerDemo(){ confirmer('Recharger les données de démonstration (les données actuelles seront effacées) ?', async()=>{ for(const s of Object.keys(STORES)) await dbClear(s); PARAM=clone(PARAM_DEFAUT); await semerDemo(); ETAT.lots=await dbTout('lots'); ETAT.lotCourant=ETAT.lots[0]?.id||'tous'; toast('Démo rechargée ✔','ok'); await calculerAlertes(); aller('dashboard'); }); }
+
+/* ===========================================================================
+   20. MODULE : PARAMÈTRES
+   =========================================================================== */
+async function renderParametres(vue){
+  document.getElementById('lotSelectBox').style.display='none';
+  const ex=PARAM.exploitation, fa=PARAM.facturation, ob=PARAM.objectifs;
+  vue.innerHTML=`
+    <div class="grid c2" style="align-items:start">
+      <div class="card pad">
+        <div class="section-titre"><span class="ic">🏡</span><h2>Exploitation</h2></div>
+        <label class="champ"><span>Nom / raison sociale</span><input type="text" id="ex_nom" value="${esc(ex.nom)}"></label>
+        <label class="champ"><span>Adresse</span><textarea id="ex_adr">${esc(ex.adresse)}</textarea></label>
+        <div class="form-grid">
+          <label class="champ"><span>SIRET</span><input type="text" id="ex_siret" value="${esc(ex.siret)}"></label>
+          <label class="champ"><span>N° cheptel (INUAV)</span><input type="text" id="ex_chep" value="${esc(ex.numeroCheptel)}"></label>
+          <label class="champ"><span>Téléphone</span><input type="tel" id="ex_tel" value="${esc(ex.tel)}"></label>
+          <label class="champ"><span>Email</span><input type="email" id="ex_email" value="${esc(ex.email)}"></label>
+          <label class="champ"><span>Souche</span><input type="text" id="ex_souche" value="${esc(ex.souche)}"></label>
+          <label class="champ"><span>Code élevage</span><select id="ex_code">${[0,1,2,3].map(c=>`<option value="${c}" ${ex.codeElevage==c?'selected':''}>${c} — ${codeElevageLib(c)}</option>`).join('')}</select></label>
+          <label class="champ"><span>N° TVA intracom.</span><input type="text" id="ex_tva" value="${esc(ex.tvaIntra||'')}"></label>
+        </div>
+        <button class="btn" onclick="sauverExploitation()">💾 Enregistrer l'exploitation</button>
+      </div>
+      <div>
+        <div class="card pad" style="margin-bottom:16px">
+          <div class="section-titre"><span class="ic">🧾</span><h2>Facturation</h2></div>
+          <div class="form-grid">
+            <label class="champ"><span>Taux de TVA (%)</span><input type="number" step="0.1" id="fa_tva" value="${fa.tvaTaux}"></label>
+            <label class="champ"><span>Préfixe n°</span><input type="text" id="fa_prefixe" value="${esc(fa.prefixe)}"></label>
+            <label class="champ"><span>Format</span><input type="text" id="fa_format" value="${esc(fa.format)}"><div class="aide">AAAA=année, NNN=numéro</div></label>
+            <label class="champ"><span>Prochain n°</span><input type="number" id="fa_prochain" value="${fa.prochainNum}"></label>
+          </div>
+          <label class="champ"><span>Mentions bas de facture</span><textarea id="fa_mention">${esc(fa.mentionBas)}</textarea></label>
+          <div class="mini" style="margin-bottom:8px">Aperçu prochain numéro : <b id="apercuNum">${genNumeroFacture()}</b></div>
+          <button class="btn" onclick="sauverFacturationParam()">💾 Enregistrer la facturation</button>
+        </div>
+        <div class="card pad">
+          <div class="section-titre"><span class="ic">🎯</span><h2>Objectifs & seuils d'alerte</h2></div>
+          <div class="form-grid">
+            <label class="champ"><span>Taux de ponte min (%)</span><input type="number" step="0.1" id="ob_ponte" value="${ob.tauxPonteMin}"></label>
+            <label class="champ"><span>Mortalité hebdo max (%)</span><input type="number" step="0.01" id="ob_morta" value="${ob.mortaliteHebdoMax}"></label>
+            <label class="champ"><span>Indice conso max</span><input type="number" step="0.1" id="ob_ic" value="${ob.icMax}"></label>
+            <label class="champ"><span>Ratio eau/aliment max</span><input type="number" step="0.1" id="ob_eau" value="${ob.ratioEauAlimentMax}"></label>
+            <label class="champ"><span>Poids œuf moyen (g)</span><input type="number" step="0.5" id="ob_poids" value="${ob.poidsOeufMoyen}"></label>
+          </div>
+          <button class="btn" onclick="sauverObjectifs()">💾 Enregistrer les objectifs</button>
+        </div>
+      </div>
+    </div>`;
+  ['fa_prefixe','fa_format','fa_prochain'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+    PARAM.facturation.prefixe=document.getElementById('fa_prefixe').value; PARAM.facturation.format=document.getElementById('fa_format').value; PARAM.facturation.prochainNum=+document.getElementById('fa_prochain').value||1;
+    document.getElementById('apercuNum').textContent=genNumeroFacture();
+  }));
+}
+async function sauverExploitation(){
+  PARAM.exploitation={nom:document.getElementById('ex_nom').value,adresse:document.getElementById('ex_adr').value,siret:document.getElementById('ex_siret').value,
+    numeroCheptel:document.getElementById('ex_chep').value,tel:document.getElementById('ex_tel').value,email:document.getElementById('ex_email').value,
+    souche:document.getElementById('ex_souche').value,codeElevage:+document.getElementById('ex_code').value,tvaIntra:document.getElementById('ex_tva').value};
+  await sauverParam('exploitation');
+  document.getElementById('brandNom').textContent=PARAM.exploitation.nom.split('\n')[0].slice(0,22);
+  document.getElementById('brandSous').textContent='Code '+PARAM.exploitation.codeElevage+' · '+PARAM.exploitation.souche;
+  toast('Exploitation enregistrée ✔','ok');
+}
+async function sauverFacturationParam(){
+  PARAM.facturation={tvaTaux:+document.getElementById('fa_tva').value||0,prefixe:document.getElementById('fa_prefixe').value,
+    format:document.getElementById('fa_format').value,prochainNum:+document.getElementById('fa_prochain').value||1,mentionBas:document.getElementById('fa_mention').value};
+  await sauverParam('facturation'); toast('Facturation enregistrée ✔','ok');
+}
+async function sauverObjectifs(){
+  PARAM.objectifs={...PARAM.objectifs,tauxPonteMin:+document.getElementById('ob_ponte').value,mortaliteHebdoMax:+document.getElementById('ob_morta').value,
+    icMax:+document.getElementById('ob_ic').value,ratioEauAlimentMax:+document.getElementById('ob_eau').value,poidsOeufMoyen:+document.getElementById('ob_poids').value};
+  await sauverParam('objectifs'); toast('Objectifs enregistrés ✔','ok'); await calculerAlertes();
+}
+
+
+/* ===========================================================================
+   14. INITIALISATION
+   =========================================================================== */
+async function init(){
+  try{
+    await ouvrirDB();
+    await chargerParametres();
+    ETAT.lots = await dbTout('lots');
+    if(!PARAM.seedFait && !ETAT.lots.length){
+      document.getElementById('vue').innerHTML=`<div class="vide"><span class="em">🌱</span>Préparation des données de démonstration…</div>`;
+      await semerDemo();
+      ETAT.lots = await dbTout('lots');
+      toast('Données de démonstration chargées. Explorez librement !','info',5000);
+    }
+    // paramètres d'affichage
+    document.getElementById('brandNom').textContent = PARAM.exploitation.nom.split('\n')[0].slice(0,22);
+    document.getElementById('brandSous').textContent = 'Code '+PARAM.exploitation.codeElevage+' · '+PARAM.exploitation.souche;
+    // Vue d'ensemble par défaut sur le tableau de bord ; les modules de saisie
+    // (production, etc.) basculent automatiquement sur un lot précis si besoin.
+    ETAT.lotCourant = ETAT.lots.length>1 ? 'tous' : (ETAT.lots[0]?.id || 'tous');
+    construireMenu();
+    await calculerAlertes();
+    // events globaux
+    document.getElementById('burger').onclick=ouvrirNavMobile;
+    document.getElementById('backdropNav').onclick=fermerNavMobile;
+    document.getElementById('modalX').onclick=fermerModal;
+    document.getElementById('modalFond').addEventListener('click',e=>{ if(e.target.id==='modalFond') fermerModal(); });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape') fermerModal(); });
+    estimerStockage();
+    await aller('dashboard');
+  }catch(err){
+    console.error(err);
+    document.getElementById('vue').innerHTML=`<div class="alerte r"><span class="ic">⛔</span><div><b>Erreur d'initialisation.</b><br>${esc(err.message)}<br><small>Votre navigateur autorise-t-il IndexedDB ? (mode privé restreint parfois le stockage)</small></div></div>`;
+  }
+}
+async function estimerStockage(){
+  try{ if(navigator.storage&&navigator.storage.estimate){ const e=await navigator.storage.estimate();
+    document.getElementById('piedStockage').textContent='Stockage : '+(e.usage/1048576).toFixed(1)+' Mo utilisés'; } }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
