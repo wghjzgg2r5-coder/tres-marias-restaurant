@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rallye Bon Œil</title>
+<meta name="description" content="Rallye Bon Œil — équipage de vénerie du lièvre en Vienne, à La Villedieu-du-Clain. Meute d'anglo-français de petite vénerie, laisser-courre les mercredis et samedis.">
+<link rel="canonical" href="https://www.rallye-bon-oeil.fr/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Rallye Bon Œil">
+<meta property="og:title" content="Rallye Bon Œil — équipage de vénerie du lièvre">
+<meta property="og:description" content="Équipage de petite vénerie en Vienne. La meute, le territoire, le carnet de la saison.">
+<meta property="og:url" content="https://www.rallye-bon-oeil.fr/">
+<meta name="theme-color" content="#1B2320">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;1,6..96,400&family=Spectral:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Rallye Bon Œil",
+  "description": "Équipage de vénerie du lièvre en Vienne.",
+  "url": "https://www.rallye-bon-oeil.fr/",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "La Villedieu-du-Clain",
+    "postalCode": "86340",
+    "addressRegion": "Vienne",
+    "addressCountry": "FR"
+  }
+}
+</script>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   RALLYE BON ŒIL — feuille de style
+   Palette : chaux du Poitou, encre vert-noir, rouge de livrée, laiton
+   ═══════════════════════════════════════════════════════════════ */
+
+:root{
+  /* fonds */
+  --craie:#E7E4DA;
+  --craie-2:#F1EFE7;
+  --papier:#DBD7C9;
+  /* encres */
+  --encre:#1B2320;
+  --encre-2:#3F4842;
+  --estompe:#767E75;
+  /* accents */
+  --livree:#8A2B2B;
+  --livree-vif:#A33B34;
+  --laiton:#94783F;
+  --laiton-clair:#BD9E5E;
+  /* filets */
+  --filet:rgba(27,35,32,.16);
+  --filet-fort:rgba(27,35,32,.34);
+  --voile:rgba(27,35,32,.05);
+  /* constantes de nuit (le héros est sombre dans les deux thèmes) */
+  --nuit:#141A17;
+  --nuit-2:#1E2622;
+  --nuit-texte:#E8E5DA;
+  --nuit-estompe:#9AA396;
+  --nuit-filet:rgba(232,229,218,.18);
+  /* typo */
+  --display:"Bodoni Moda",'Didot','Times New Roman',serif;
+  --texte:"Spectral",Georgia,'Times New Roman',serif;
+  --util:"Archivo",-apple-system,'Segoe UI',Helvetica,sans-serif;
+  /* mesures */
+  --mesure:63ch;
+  --gouttiere:clamp(18px,5vw,64px);
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --craie:#141A17;
+    --craie-2:#1B221E;
+    --papier:#222A25;
+    --encre:#E6E3D8;
+    --encre-2:#C0BEB2;
+    --estompe:#8D9589;
+    --livree:#CB5A50;
+    --livree-vif:#DC6F63;
+    --laiton:#C4A369;
+    --laiton-clair:#DBBE86;
+    --filet:rgba(230,227,216,.15);
+    --filet-fort:rgba(230,227,216,.32);
+    --voile:rgba(230,227,216,.045);
+  }
+}
+:root[data-theme="dark"]{
+  --craie:#141A17;
+  --craie-2:#1B221E;
+  --papier:#222A25;
+  --encre:#E6E3D8;
+  --encre-2:#C0BEB2;
+  --estompe:#8D9589;
+  --livree:#CB5A50;
+  --livree-vif:#DC6F63;
+  --laiton:#C4A369;
+  --laiton-clair:#DBBE86;
+  --filet:rgba(230,227,216,.15);
+  --filet-fort:rgba(230,227,216,.32);
+  --voile:rgba(230,227,216,.045);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:var(--craie);
+  color:var(--encre);
+  font-family:var(--texte);
+  font-weight:300;
+  font-size:clamp(16.5px,1.05vw,18px);
+  line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+h1,h2,h3{font-family:var(--display);font-weight:400;text-wrap:balance;margin:0;line-height:1.14}
+
+a{color:inherit}
+img{max-width:100%;display:block}
+
+:focus-visible{
+  outline:2px solid var(--livree);
+  outline-offset:3px;
+  border-radius:2px;
+}
+
+.saut-lien{
+  position:absolute;left:-9999px;top:0;
+  background:var(--encre);color:var(--craie);
+  padding:.7em 1.2em;z-index:100;font-family:var(--util);font-size:.85rem;
+}
+.saut-lien:focus{left:0}
+
+/* ── bandeau de démonstration ───────────────────────────────── */
+.demo{
+  background:var(--laiton);
+  color:#15100A;
+  font-family:var(--util);
+  font-size:.72rem;
+  font-weight:600;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  text-align:center;
+  padding:.62em var(--gouttiere);
+  line-height:1.5;
+}
+
+/* ── navigation ─────────────────────────────────────────────── */
+.barre{
+  position:sticky;top:0;z-index:50;
+  background:color-mix(in srgb,var(--craie) 92%,transparent);
+  backdrop-filter:blur(9px);
+  border-bottom:1px solid var(--filet);
+}
+.barre__inner{
+  max-width:1180px;margin-inline:auto;
+  padding-inline:var(--gouttiere);
+  padding-block:.85rem;
+  display:flex;align-items:center;justify-content:space-between;gap:1.5rem;
+}
+.marque{
+  font-family:var(--display);
+  font-size:1.12rem;
+  letter-spacing:.06em;
+  text-decoration:none;
+  white-space:nowrap;
+}
+.marque em{font-style:normal;color:var(--livree)}
+
+.menu{display:flex;gap:1.6rem;list-style:none;margin:0;padding:0}
+.menu a{
+  font-family:var(--util);
+  font-size:.76rem;
+  font-weight:500;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+  text-decoration:none;
+  color:var(--encre-2);
+  padding-block:.35em;
+  border-bottom:1px solid transparent;
+  transition:color .18s,border-color .18s;
+}
+.menu a:hover{color:var(--livree);border-bottom-color:var(--livree)}
+
+.bascule{
+  display:none;
+  background:none;border:1px solid var(--filet-fort);
+  color:var(--encre);
+  font-family:var(--util);font-size:.72rem;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;
+  padding:.55em 1em;cursor:pointer;border-radius:1px;
+}
+
+@media (max-width:860px){
+  .bascule{display:block}
+  .menu{
+    display:none;
+    position:absolute;left:0;right:0;top:100%;
+    flex-direction:column;gap:0;
+    background:var(--craie-2);
+    border-bottom:1px solid var(--filet);
+    padding:.5rem var(--gouttiere) 1.2rem;
+  }
+  .menu.ouvert{display:flex}
+  .menu a{display:block;padding-block:.85em;border-bottom:1px solid var(--filet)}
+}
+
+/* ── héros ──────────────────────────────────────────────────── */
+.heros{
+  background:var(--nuit);
+  color:var(--nuit-texte);
+  position:relative;
+  overflow:hidden;
+  border-bottom:3px solid var(--laiton);
+}
+.heros::before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 115%,rgba(148,120,63,.20),transparent 62%),
+    repeating-linear-gradient(112deg,transparent 0 22px,rgba(232,229,218,.022) 22px 23px);
+  pointer-events:none;
+}
+.heros__inner{
+  position:relative;
+  max-width:1180px;margin-inline:auto;
+  padding-inline:var(--gouttiere);
+  padding-block:clamp(3.4rem,9vw,6.4rem);
+  text-align:center;
+}
+.embleme{margin:0 auto 1.7rem;display:block;width:52px;height:auto;color:var(--laiton-clair)}
+.heros h1{
+  font-size:clamp(2.9rem,9vw,5.4rem);
+  letter-spacing:.012em;
+  margin-bottom:.5rem;
+}
+.heros h1 .oeil{color:var(--laiton-clair)}
+.surtitre{
+  font-family:var(--util);
+  font-size:.72rem;font-weight:600;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--nuit-estompe);
+  margin:0 0 1.5rem;
+}
+.sous-titre{
+  font-family:var(--display);
+  font-style:italic;
+  font-size:clamp(1.05rem,2.4vw,1.32rem);
+  color:var(--nuit-texte);
+  max-width:34ch;margin:0 auto 2.4rem;
+  line-height:1.55;
+}
+.heros__filet{
+  width:64px;height:1px;background:var(--laiton);
+  margin:0 auto 1.5rem;
+}
+
+.actions{display:flex;flex-wrap:wrap;gap:.85rem;justify-content:center}
+.bouton{
+  font-family:var(--util);font-size:.76rem;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;
+  text-decoration:none;
+  padding:.95em 1.9em;
+  border:1px solid var(--laiton);
+  color:var(--nuit);background:var(--laiton-clair);
+  border-radius:1px;
+  transition:background .2s,color .2s;
+}
+.bouton:hover{background:#D8BC82}
+.bouton--creux{background:transparent;color:var(--nuit-texte);border-color:var(--nuit-filet)}
+.bouton--creux:hover{background:rgba(232,229,218,.09);color:var(--nuit-texte)}
+
+/* ── structure des sections ─────────────────────────────────── */
+.section{
+  max-width:1180px;margin-inline:auto;
+  padding-inline:var(--gouttiere);
+  padding-block:clamp(3.2rem,7vw,5.4rem);
+}
+.section--pale{background:var(--craie-2);max-width:none}
+.section--pale > *{max-width:1180px;margin-inline:auto}
+.section + .section{border-top:1px solid var(--filet)}
+
+.eyebrow{
+  font-family:var(--util);
+  font-size:.7rem;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--livree);
+  margin:0 0 .9rem;
+  display:flex;align-items:center;gap:.75rem;
+}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--filet)}
+
+h2{font-size:clamp(1.85rem,4.4vw,2.75rem);margin-bottom:1.1rem}
+h3{font-size:1.16rem;letter-spacing:.01em}
+
+.chapo{
+  font-size:clamp(1.12rem,2.2vw,1.3rem);
+  line-height:1.66;
+  max-width:var(--mesure);
+  color:var(--encre);
+}
+.prose{max-width:var(--mesure)}
+.prose p{margin:0 0 1.15em}
+.prose p:last-child{margin-bottom:0}
+
+.lettrine::first-letter{
+  font-family:var(--display);
+  font-size:3.35em;
+  float:left;
+  line-height:.84;
+  padding:.06em .12em 0 0;
+  color:var(--livree);
+}
+
+/* ── fiches de l'équipage (liste à filets, pas des cartes) ──── */
+.fiches{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:0;
+  margin-top:2.6rem;
+  border-top:1px solid var(--filet-fort);
+}
+.fiche{
+  padding:1.7rem 1.5rem 1.7rem 0;
+  border-bottom:1px solid var(--filet);
+  border-right:1px solid var(--filet);
+}
+.fiche:last-child{border-right:none}
+@media (max-width:720px){.fiche{border-right:none;padding-right:0}}
+.fiche dt{
+  font-family:var(--util);
+  font-size:.68rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--estompe);
+  margin-bottom:.6rem;
+}
+.fiche dd{
+  margin:0;
+  font-family:var(--display);
+  font-size:1.42rem;
+  line-height:1.24;
+}
+.fiche dd small{
+  display:block;
+  font-family:var(--texte);
+  font-size:.86rem;
+  color:var(--encre-2);
+  margin-top:.5rem;
+  line-height:1.6;
+}
+
+/* ── emplacements photo ─────────────────────────────────────── */
+.reserve{margin:0}
+.reserve__cadre{
+  aspect-ratio:var(--ratio,3/2);
+  border:1px solid var(--filet-fort);
+  background:
+    repeating-linear-gradient(45deg,transparent 0 9px,var(--voile) 9px 10px);
+  display:grid;place-items:center;
+  padding:1.2rem;
+  position:relative;
+}
+.reserve__cadre::after{
+  content:"";position:absolute;inset:7px;border:1px solid var(--filet);
+  pointer-events:none;
+}
+.reserve__label{
+  font-family:var(--util);
+  font-size:.66rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--estompe);
+  text-align:center;
+  max-width:24ch;
+  line-height:1.7;
+}
+.reserve figcaption{
+  font-family:var(--util);
+  font-size:.72rem;
+  letter-spacing:.04em;
+  color:var(--estompe);
+  margin-top:.7rem;
+  line-height:1.6;
+}
+
+.galerie{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:1.4rem;
+  margin-top:2.4rem;
+}
+.galerie .reserve--large{grid-column:span 2}
+@media (max-width:600px){.galerie .reserve--large{grid-column:span 1}}
+
+.duo{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:clamp(1.6rem,4vw,3.4rem);
+  align-items:center;
+}
+@media (max-width:820px){.duo{grid-template-columns:1fr}}
+
+/* ── carnet de laisser-courre ───────────────────────────────── */
+.carnet-enveloppe{overflow-x:auto;margin-top:2.2rem}
+table.carnet{
+  width:100%;
+  min-width:520px;
+  border-collapse:collapse;
+  font-variant-numeric:tabular-nums;
+}
+table.carnet caption{
+  text-align:left;
+  font-family:var(--util);
+  font-size:.7rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--estompe);
+  padding-bottom:.9rem;
+}
+table.carnet th{
+  font-family:var(--util);
+  font-size:.66rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--estompe);
+  text-align:left;
+  padding:.65rem .9rem .65rem 0;
+  border-bottom:1px solid var(--filet-fort);
+  white-space:nowrap;
+}
+table.carnet td{
+  padding:.85rem .9rem .85rem 0;
+  border-bottom:1px solid var(--filet);
+  font-size:.96rem;
+}
+table.carnet tbody tr:hover{background:var(--voile)}
+.jour{font-family:var(--util);font-size:.84rem;font-weight:600;letter-spacing:.03em;white-space:nowrap}
+.lieu{font-family:var(--display);font-size:1.06rem}
+.issue{
+  font-family:var(--util);font-size:.68rem;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;
+  padding:.3em .75em;border:1px solid var(--filet-fort);border-radius:1px;
+  white-space:nowrap;
+}
+.issue--pris{border-color:var(--livree);color:var(--livree)}
+.issue--gracie{border-color:var(--laiton);color:var(--laiton)}
+
+.note{
+  font-size:.9rem;
+  color:var(--estompe);
+  max-width:var(--mesure);
+  margin-top:1.5rem;
+  font-style:italic;
+}
+
+/* ── actualités ─────────────────────────────────────────────── */
+.billets{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:2.2rem;
+  margin-top:2.4rem;
+}
+.billet time{
+  display:block;
+  font-family:var(--util);
+  font-size:.68rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--livree);
+  margin-bottom:.6rem;
+}
+.billet h3{margin-bottom:.5rem}
+.billet p{margin:0;font-size:.95rem;color:var(--encre-2)}
+
+/* ── contact ────────────────────────────────────────────────── */
+.contact-grille{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:clamp(1.8rem,4vw,3.6rem);
+  margin-top:2.4rem;
+  align-items:start;
+}
+@media (max-width:820px){.contact-grille{grid-template-columns:1fr}}
+
+.coord{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1.3rem}
+.coord dt,.coord .cle{
+  font-family:var(--util);
+  font-size:.68rem;font-weight:600;letter-spacing:.17em;text-transform:uppercase;
+  color:var(--estompe);
+  margin-bottom:.3rem;
+}
+.coord .valeur{font-size:1.02rem}
+.coord a{color:var(--livree);text-decoration-thickness:1px;text-underline-offset:3px}
+
+form{display:flex;flex-direction:column;gap:1.15rem}
+label{
+  font-family:var(--util);
+  font-size:.68rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--estompe);
+  display:block;margin-bottom:.45rem;
+}
+input,textarea{
+  width:100%;
+  font-family:var(--texte);
+  font-size:1rem;
+  color:var(--encre);
+  background:var(--craie);
+  border:1px solid var(--filet-fort);
+  border-radius:1px;
+  padding:.8em .9em;
+}
+input:focus,textarea:focus{border-color:var(--livree)}
+textarea{resize:vertical;min-height:9em}
+button[type="submit"]{
+  align-self:flex-start;
+  font-family:var(--util);font-size:.76rem;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;
+  padding:.95em 2em;
+  background:var(--livree);color:#F4F1E8;
+  border:1px solid var(--livree);border-radius:1px;
+  cursor:pointer;
+  transition:background .2s;
+}
+button[type="submit"]:hover{background:var(--livree-vif)}
+
+/* ── mention « à vérifier » ─────────────────────────────────── */
+.verif{
+  border-bottom:1px dotted var(--laiton);
+  cursor:help;
+}
+
+/* ── pied de page ───────────────────────────────────────────── */
+footer{
+  background:var(--nuit);
+  color:var(--nuit-texte);
+  border-top:3px solid var(--laiton);
+}
+.pied{
+  max-width:1180px;margin-inline:auto;
+  padding-inline:var(--gouttiere);
+  padding-block:clamp(2.6rem,5vw,3.8rem);
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:2.4rem;
+}
+.pied h3{
+  font-family:var(--util);
+  font-size:.68rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--nuit-estompe);
+  margin-bottom:.9rem;
+}
+.pied p,.pied li{font-size:.9rem;color:var(--nuit-texte);margin:0 0 .5rem}
+.pied ul{list-style:none;padding:0;margin:0}
+.pied a{color:var(--laiton-clair);text-decoration:none;text-underline-offset:3px}
+.pied a:hover{text-decoration:underline}
+.pied__bas{
+  border-top:1px solid var(--nuit-filet);
+  max-width:1180px;margin-inline:auto;
+  padding-inline:var(--gouttiere);
+  padding-block:1.4rem;
+  font-family:var(--util);
+  font-size:.68rem;letter-spacing:.08em;
+  color:var(--nuit-estompe);
+  display:flex;flex-wrap:wrap;gap:.6rem 1.6rem;justify-content:space-between;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+html{scroll-behavior:smooth}
+</style>
+</head>
+<body>
+
+<a class="saut-lien" href="#principal">Aller au contenu</a>
+
+<!-- ▼ BANDEAU DE DÉMONSTRATION — à supprimer à la mise en ligne réelle ▼ -->
+<p class="demo">Maquette de démonstration · textes à valider, photographies à insérer</p>
+
+<header class="barre">
+  <div class="barre__inner">
+    <a class="marque" href="#principal">Rallye Bon <em>Œil</em></a>
+    <button class="bascule" id="bascule" aria-expanded="false" aria-controls="menu">Menu</button>
+    <nav aria-label="Navigation principale">
+      <ul class="menu" id="menu">
+        <li><a href="#equipage">L’équipage</a></li>
+        <li><a href="#meute">La meute</a></li>
+        <li><a href="#carnet">Le carnet</a></li>
+        <li><a href="#galerie">Galerie</a></li>
+        <li><a href="#actualites">Actualités</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="principal">
+
+  <!-- ═══ HÉROS ═══ -->
+  <section class="heros">
+    <div class="heros__inner">
+      <svg class="embleme" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <circle cx="28" cy="34" r="18"/>
+        <circle cx="28" cy="34" r="12"/>
+        <path d="M40 22 L58 8 L60 16 L46 28 Z" stroke-linejoin="round"/>
+        <circle cx="28" cy="34" r="2.5" fill="currentColor" stroke="none"/>
+      </svg>
+      <p class="surtitre">Vénerie du lièvre · Vienne</p>
+      <h1>Rallye Bon <span class="oeil">Œil</span></h1>
+      <div class="heros__filet"></div>
+      <p class="sous-titre">Un équipage de petite vénerie sur les plaines et le bocage du Clain.</p>
+      <div class="actions">
+        <a class="bouton" href="#carnet">Le carnet de la saison</a>
+        <a class="bouton bouton--creux" href="#contact">Nous écrire</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PRÉSENTATION ═══ -->
+  <section class="section" id="equipage">
+    <p class="eyebrow">L’équipage</p>
+    <div class="prose">
+      <p class="chapo lettrine">Le Rallye Bon Œil découple en Vienne, au sud de Poitiers, sur les terres de <span class="verif" title="À confirmer">La Villedieu-du-Clain</span>. La meute y chasse le lièvre, à pied, dans la tradition de la petite vénerie : un animal, une meute, et le temps qu’il faut.</p>
+      <p>Chasser le lièvre n’est pas chasser le cerf. Ici, tout se joue à ras de terre, dans les labours et les chaumes, sur une voie que le vent efface et que le gibier brouille à plaisir. Le lièvre ne fuit pas droit : il double, il revient sur ses pas, il se fait remplacer par un autre. C’est un travail de patience où la meute compte davantage que la vitesse, et où une chasse peut durer trois heures sur un carré de deux cents hectares.</p>
+      <p>L’équipage sort <span class="verif" title="À confirmer">le mercredi et le samedi</span> pendant la saison, d’octobre à mars. Les suiveurs sont les bienvenus au rendez-vous, à condition de s’annoncer : les terres appartiennent à ceux qui les cultivent, et le respect des cultures et des clôtures prime sur tout le reste.</p>
+    </div>
+
+    <dl class="fiches">
+      <div class="fiche">
+        <dt>Maître d’équipage</dt>
+        <dd><span class="verif" title="À confirmer">Guillaume Lecouturier</span></dd>
+      </div>
+      <div class="fiche">
+        <dt>Animal chassé</dt>
+        <dd>Le lièvre<small>Petite vénerie, chasse à pied.</small></dd>
+      </div>
+      <div class="fiche">
+        <dt>Jours de chasse</dt>
+        <dd>Mercredi &amp; samedi<small>D’octobre à mars, selon l’arrêté préfectoral.</small></dd>
+      </div>
+      <div class="fiche">
+        <dt>Territoire</dt>
+        <dd>Vallée du Clain<small>Plaines céréalières, bocage et bois de la Vienne.</small></dd>
+      </div>
+    </dl>
+  </section>
+
+  <!-- ═══ LA MEUTE ═══ -->
+  <section class="section section--pale" id="meute">
+    <div class="duo">
+      <div>
+        <p class="eyebrow">La meute</p>
+        <h2>Des anglo-français de petite vénerie</h2>
+        <div class="prose">
+          <p>La meute est composée d’<span class="verif" title="À confirmer">anglo-français de petite vénerie</span>, race née du croisement des chiens français et des harriers anglais : le nez et la voix des uns, la vitesse et la solidité des autres.</p>
+          <p>Sur le lièvre, on demande au chien trois qualités qui ne vont pas toujours ensemble : un nez capable de relever une voie de plusieurs heures, la sagesse de ne pas changer d’animal quand un second se lève, et le fond nécessaire pour tenir la journée. Un chien qui « ment » — qui donne de la voix sans voie — se repère vite et se corrige lentement.</p>
+          <p>Les chiens vivent au chenil en meute, sortent toute l’année, et travaillent en couples formés. Le maître d’équipage les connaît individuellement à la voix.</p>
+        </div>
+      </div>
+      <figure class="reserve" style="--ratio:4/5">
+        <div class="reserve__cadre"><span class="reserve__label">Photographie 1<br>La meute au chenil ou au rendez-vous<br>· format portrait ·</span></div>
+        <figcaption>Emplacement réservé — remplacer par une photographie de la meute.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ═══ CARNET DE LA SAISON ═══ -->
+  <!-- ▼▼▼ ZONE MODIFIABLE : les dates de la saison. Copier une ligne <tr> et changer le texte. ▼▼▼ -->
+  <section class="section" id="carnet">
+    <p class="eyebrow">Le carnet</p>
+    <h2>La saison 2026-2027</h2>
+    <p class="prose">Les rendez-vous sont donnés à 8 h 30 sauf mention contraire. Ils peuvent être modifiés la veille en fonction du temps et de l’état des terres&nbsp;: vérifiez la veille au soir.</p>
+
+    <div class="carnet-enveloppe">
+      <table class="carnet">
+        <caption>Laisser-courre à venir</caption>
+        <thead>
+          <tr><th scope="col">Date</th><th scope="col">Rendez-vous</th><th scope="col">Commune</th><th scope="col">Heure</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="jour">sam. 10 oct.</td><td class="lieu">Les Grandes Brandes</td><td>La Villedieu-du-Clain</td><td>8 h 30</td></tr>
+          <tr><td class="jour">mer. 14 oct.</td><td class="lieu">Croix de la Garenne</td><td>Aslonnes</td><td>8 h 30</td></tr>
+          <tr><td class="jour">sam. 17 oct.</td><td class="lieu">Ferme de Bellefois</td><td>Château-Larcher</td><td>9 h 00</td></tr>
+          <tr><td class="jour">mer. 21 oct.</td><td class="lieu">Le Pont de l’Ozon</td><td>Smarves</td><td>8 h 30</td></tr>
+          <tr><td class="jour">sam. 24 oct.</td><td class="lieu">Les Chaumes du Breuil</td><td>Nieuil-l’Espoir</td><td>8 h 30</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="carnet-enveloppe">
+      <table class="carnet">
+        <caption>Relevé de la saison passée</caption>
+        <thead>
+          <tr><th scope="col">Date</th><th scope="col">Attaque</th><th scope="col">Temps de chasse</th><th scope="col">Issue</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="jour">sam. 8 mars</td><td class="lieu">Les Ouches</td><td>2 h 40</td><td><span class="issue issue--gracie">Gracié</span></td></tr>
+          <tr><td class="jour">mer. 5 mars</td><td class="lieu">Bois de la Roche</td><td>1 h 55</td><td><span class="issue issue--pris">Pris</span></td></tr>
+          <tr><td class="jour">sam. 1<sup>er</sup> mars</td><td class="lieu">Plaine de Vernon</td><td>3 h 10</td><td><span class="issue issue--gracie">Gracié</span></td></tr>
+          <tr><td class="jour">mer. 26 févr.</td><td class="lieu">Les Grandes Brandes</td><td>2 h 05</td><td><span class="issue issue--pris">Pris</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">Exemple de présentation&nbsp;: ces lignes sont fictives et servent à montrer la mise en page. Elles se remplacent en trois minutes.</p>
+  </section>
+  <!-- ▲▲▲ FIN DE LA ZONE MODIFIABLE ▲▲▲ -->
+
+  <!-- ═══ GALERIE ═══ -->
+  <section class="section section--pale" id="galerie">
+    <p class="eyebrow">Galerie</p>
+    <h2>La saison en images</h2>
+    <p class="prose">Chaque photographie porte une légende — lieu, date, circonstance. C’est ce qui fait vivre un site d’équipage, et ce que les moteurs de recherche lisent.</p>
+
+    <div class="galerie">
+      <figure class="reserve reserve--large">
+        <div class="reserve__cadre" style="--ratio:16/9"><span class="reserve__label">Photographie 2<br>Le rendez-vous au petit matin<br>· panoramique ·</span></div>
+        <figcaption>Le rendez-vous des Grandes Brandes, octobre.</figcaption>
+      </figure>
+      <figure class="reserve">
+        <div class="reserve__cadre"><span class="reserve__label">Photographie 3<br>Le découpler</span></div>
+        <figcaption>Le découpler, plaine de Vernon.</figcaption>
+      </figure>
+      <figure class="reserve">
+        <div class="reserve__cadre"><span class="reserve__label">Photographie 4<br>Les chiens à la voie</span></div>
+        <figcaption>Les chiens à la voie dans les chaumes.</figcaption>
+      </figure>
+      <figure class="reserve">
+        <div class="reserve__cadre"><span class="reserve__label">Photographie 5<br>La trompe</span></div>
+        <figcaption>Sonnerie à la fin du laisser-courre.</figcaption>
+      </figure>
+      <figure class="reserve">
+        <div class="reserve__cadre"><span class="reserve__label">Photographie 6<br>Le bocage du Clain</span></div>
+        <figcaption>Le territoire, un matin de gelée blanche.</figcaption>
+      </figure>
+    </div>
+
+    <p class="note">Chaque encadré hachuré recevra une photographie. Le format indiqué est celui qui convient le mieux à l’emplacement — les images seront recadrées et compressées automatiquement.</p>
+  </section>
+
+  <!-- ═══ ACTUALITÉS ═══ -->
+  <section class="section" id="actualites">
+    <p class="eyebrow">Actualités</p>
+    <h2>Nouvelles de l’équipage</h2>
+    <div class="billets">
+      <article class="billet">
+        <time datetime="2026-09-01">1<sup>er</sup> septembre 2026</time>
+        <h3>Ouverture de la saison</h3>
+        <p>Le premier laisser-courre est fixé au samedi 10 octobre, aux Grandes Brandes. Le calendrier complet est publié dans le carnet.</p>
+      </article>
+      <article class="billet">
+        <time datetime="2026-07-12">12 juillet 2026</time>
+        <h3>Quatre jeunes chiens à l’entraînement</h3>
+        <p>Quatre chiens de la portée de l’an dernier ont commencé leur mise à la voie et suivront les sorties d’octobre en couples formés.</p>
+      </article>
+      <article class="billet">
+        <time datetime="2026-05-20">20 mai 2026</time>
+        <h3>Remerciements aux propriétaires</h3>
+        <p>L’équipage remercie les agriculteurs et propriétaires qui lui ouvrent leurs terres, et rappelle à ses suiveurs les règles de circulation sur les parcelles cultivées.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ═══ CONTACT ═══ -->
+  <section class="section section--pale" id="contact">
+    <p class="eyebrow">Contact</p>
+    <h2>Nous écrire</h2>
+    <p class="prose">Pour suivre une chasse, signaler un problème sur une parcelle, ou simplement poser une question sur l’équipage.</p>
+
+    <div class="contact-grille">
+      <dl class="coord">
+        <div>
+          <dt>Maître d’équipage</dt>
+          <dd class="valeur"><span class="verif" title="À confirmer">Guillaume Lecouturier</span></dd>
+        </div>
+        <div>
+          <dt>Courriel</dt>
+          <dd class="valeur"><a href="mailto:contact@rallye-bon-oeil.fr">contact@rallye-bon-oeil.fr</a></dd>
+        </div>
+        <div>
+          <dt>Téléphone</dt>
+          <dd class="valeur"><a href="tel:+33500000000">05 00 00 00 00</a></dd>
+        </div>
+        <div>
+          <dt>Siège</dt>
+          <dd class="valeur">La Villedieu-du-Clain<br>86340 Vienne</dd>
+        </div>
+        <div>
+          <dt>Suivre une chasse</dt>
+          <dd class="valeur">Prévenir la veille. Les suiveurs sont responsables de leur véhicule et respectent les cultures.</dd>
+        </div>
+      </dl>
+
+      <!-- Le formulaire s'active avec un service gratuit (Formspree) : remplacer VOTRE_ID. -->
+      <form action="https://formspree.io/f/VOTRE_ID" method="post">
+        <div>
+          <label for="nom">Nom</label>
+          <input type="text" id="nom" name="nom" autocomplete="name" required>
+        </div>
+        <div>
+          <label for="courriel">Courriel</label>
+          <input type="email" id="courriel" name="email" autocomplete="email" required>
+        </div>
+        <div>
+          <label for="message">Message</label>
+          <textarea id="message" name="message" required></textarea>
+        </div>
+        <button type="submit">Envoyer</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ═══ MENTIONS LÉGALES ═══ -->
+  <section class="section" id="mentions">
+    <p class="eyebrow">Mentions légales</p>
+    <h2>Éditeur, hébergeur, données</h2>
+    <div class="prose">
+      <p><strong>Éditeur du site&nbsp;:</strong> Rallye Bon Œil, <span class="verif" title="À compléter">association / équipage</span>, La Villedieu-du-Clain (86340). Responsable de la publication&nbsp;: <span class="verif" title="À compléter">à compléter</span>.</p>
+      <p><strong>Hébergeur&nbsp;:</strong> GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.</p>
+      <p><strong>Données personnelles&nbsp;:</strong> les informations transmises par le formulaire de contact sont utilisées uniquement pour répondre à votre message. Elles ne sont ni cédées ni revendues. Vous pouvez demander leur suppression à tout moment en écrivant à l’adresse de contact.</p>
+      <p><strong>Cookies&nbsp;:</strong> ce site ne dépose aucun cookie et n’utilise aucun outil de mesure d’audience.</p>
+      <p><strong>Photographies&nbsp;:</strong> tous droits réservés. Toute reproduction est soumise à autorisation.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="pied">
+    <div>
+      <h3>Rallye Bon Œil</h3>
+      <p>Équipage de vénerie du lièvre.<br>La Villedieu-du-Clain, Vienne.</p>
+    </div>
+    <div>
+      <h3>Le site</h3>
+      <ul>
+        <li><a href="#equipage">L’équipage</a></li>
+        <li><a href="#meute">La meute</a></li>
+        <li><a href="#carnet">Le carnet</a></li>
+        <li><a href="#galerie">Galerie</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Nous joindre</h3>
+      <ul>
+        <li><a href="mailto:contact@rallye-bon-oeil.fr">contact@rallye-bon-oeil.fr</a></li>
+        <li><a href="#contact">Formulaire de contact</a></li>
+        <li><a href="#mentions">Mentions légales</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="pied__bas">
+    <span>© 2026 Rallye Bon Œil</span>
+    <span>Les mentions soulignées en pointillé restent à confirmer.</span>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var b = document.getElementById('bascule');
+    var m = document.getElementById('menu');
+    if(!b || !m) return;
+    b.addEventListener('click', function(){
+      var ouvert = m.classList.toggle('ouvert');
+      b.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+      b.textContent = ouvert ? 'Fermer' : 'Menu';
+    });
+    m.addEventListener('click', function(e){
+      if(e.target.tagName === 'A' && m.classList.contains('ouvert')){
+        m.classList.remove('ouvert');
+        b.setAttribute('aria-expanded','false');
+        b.textContent = 'Menu';
+      }
+    });
+  })();
+</script>
+
+</body>
+</html>
