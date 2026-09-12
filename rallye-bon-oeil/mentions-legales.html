@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mentions légales — Rallye Bon Œil</title>
+<meta name="description" content="Mentions légales du site de l'équipage Rallye Bon Œil.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#22492A">
+<link rel="icon" href="img/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a class="saut-lien" href="#contenu">Aller au contenu</a>
+
+<header class="entete">
+  <a class="entete__nom" href="index.html">Rallye Bon Oeil</a>
+  <img class="entete__logo" src="img/logo.png" width="156" height="156" alt="Bouton de l&rsquo;&eacute;quipage du Rallye Bon &OElig;il">
+  <button class="burger" id="burger" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="voile">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<nav class="voile" id="voile" hidden aria-label="Menu principal">
+  <button class="fermer" id="fermer" aria-label="Fermer le menu">&times;</button>
+  <ul class="nav">
+    <li><a class="accueil" href="index.html">Accueil</a></li>
+    <li>
+      <details open>
+        <summary><span class="chevron" aria-hidden="true"></span><a href="calendrier.html">Calendrier</a></summary>
+        <ul>
+          <li><a href="calendrier-2025-2026.html">Saison 2025/2026</a></li>
+          <li><a href="calendrier-2026-2027.html">Saison 2026/2027</a></li>
+        </ul>
+      </details>
+    </li>
+    <li>
+      <details open>
+        <summary><span class="chevron" aria-hidden="true"></span><a href="comptes-rendus.html">Compte rendu</a></summary>
+        <ul>
+          <li><a href="compte-rendu-2025-2026.html">Saison 2025/2026</a></li>
+          <li><a href="compte-rendu-2026-2027.html">Saison 2026/2027</a></li>
+        </ul>
+      </details>
+    </li>
+    <li><a href="photos-videos.html">Photos/ vid&eacute;os</a></li>
+    <li><a href="fanfares.html">Fanfares</a></li>
+  </ul>
+</nav>
+
+<main class="page-texte" id="contenu">
+  <div class="dedans">
+    <h1>Mentions l&eacute;gales</h1>
+
+    <h2>&Eacute;diteur du site</h2>
+    <p>Rallye Bon &OElig;il &mdash; &agrave; compl&eacute;ter&nbsp;: statut (association, &eacute;quipage), adresse compl&egrave;te et nom du responsable de la publication.</p>
+
+    <h2>H&eacute;bergeur</h2>
+    <p>GitHub,&nbsp;Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA&nbsp;94107, &Eacute;tats-Unis.</p>
+
+    <h2>Donn&eacute;es personnelles</h2>
+    <p>Ce site ne collecte aucune donn&eacute;e personnelle et ne d&eacute;pose aucun cookie. Aucun outil de mesure d&rsquo;audience n&rsquo;y est install&eacute;.</p>
+
+    <h2>Photographies et vid&eacute;os</h2>
+    <p>Sauf mention contraire, les images publi&eacute;es sur ce site appartiennent &agrave; l&rsquo;&eacute;quipage. Toute reproduction est soumise &agrave; autorisation.</p>
+  </div>
+</main>
+
+<footer class="pied">
+  <span>&copy; 2026 Rallye Bon &OElig;il</span>
+  <span><a href="index.html">Retour &agrave; l&rsquo;accueil</a></span>
+</footer>
+
+<script>
+  (function () {
+    var ouvrir = document.getElementById('burger');
+    var fermer = document.getElementById('fermer');
+    var voile  = document.getElementById('voile');
+    function etat(o) {
+      voile.hidden = !o;
+      ouvrir.setAttribute('aria-expanded', o ? 'true' : 'false');
+      document.body.style.overflow = o ? 'hidden' : '';
+      (o ? fermer : ouvrir).focus();
+    }
+    ouvrir.addEventListener('click', function () { etat(true); });
+    fermer.addEventListener('click', function () { etat(false); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !voile.hidden) { etat(false); }
+    });
+  })();
+</script>
+
+</body>
+</html>

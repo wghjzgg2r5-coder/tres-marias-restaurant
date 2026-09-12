@@ -1,0 +1,266 @@
+/* ═══════════════════════════════════════════════════════════════════
+   RALLYE BON ŒIL — feuille de style commune à toutes les pages
+   Couleurs relevées au pixel sur le site Wix d'origine.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root{
+  --vert-entete:#22492A;   /* bandeau du haut */
+  --vert-bouton:#265129;   /* boutons et texte du menu */
+  --or:#E0B737;            /* titres et nom de l'équipage */
+  --bleu-accueil:#0057E1;  /* lien « Accueil » du menu (voir note plus bas) */
+  --blanc:#FFFFFF;
+
+  --serif:"Playfair Display",Georgia,'Times New Roman',serif;
+  --sans:"Open Sans",-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
+
+  --entete-h:92px;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+
+html{scroll-behavior:smooth}
+
+body{
+  margin:0;
+  overflow-x:clip;
+  background:var(--vert-entete);
+  color:var(--blanc);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+
+img{max-width:100%;display:block}
+a{color:inherit}
+
+:focus-visible{outline:3px solid var(--or);outline-offset:3px}
+
+.saut-lien{position:absolute;left:-9999px;top:0;background:#fff;color:var(--vert-bouton);
+  padding:.7em 1.2em;z-index:200;font-weight:600}
+.saut-lien:focus{left:0}
+
+/* ── EN-TÊTE ──────────────────────────────────────────────────────── */
+.entete{
+  position:sticky;top:0;z-index:100;
+  background:var(--vert-entete);
+  min-height:var(--entete-h);
+  display:flex;align-items:center;
+  padding:12px clamp(14px,4vw,32px);
+  gap:clamp(10px,3vw,26px);
+}
+.entete__nom{
+  font-family:var(--serif);
+  font-weight:700;
+  font-size:clamp(1.45rem,7.2vw,2rem);
+  color:var(--or);
+  text-decoration:none;
+  line-height:1.1;
+  flex:1 1 auto;
+  min-width:0;
+}
+.entete__logo{
+  width:clamp(44px,13vw,56px);
+  height:auto;
+  flex:0 0 auto;
+}
+.burger{
+  flex:0 0 auto;
+  width:44px;height:44px;
+  display:grid;align-content:center;gap:7px;
+  background:none;border:0;padding:0 4px;cursor:pointer;
+}
+.burger span{display:block;height:3px;background:var(--or);border-radius:1px}
+
+/* ── MENU PLEIN ÉCRAN ─────────────────────────────────────────────── */
+.voile{
+  position:fixed;inset:0;z-index:150;
+  background:var(--blanc);
+  overflow-y:auto;
+  padding:clamp(70px,14vh,120px) 20px 60px;
+}
+.voile[hidden]{display:none}
+
+.fermer{
+  position:absolute;top:clamp(22px,5vh,44px);right:clamp(18px,6vw,40px);
+  width:46px;height:46px;
+  background:none;border:0;cursor:pointer;
+  color:var(--vert-bouton);
+  font-size:2.4rem;line-height:1;font-weight:300;
+  font-family:var(--sans);
+}
+
+.nav,.nav ul{list-style:none;margin:0;padding:0}
+.nav{display:flex;flex-direction:column;align-items:center;gap:clamp(18px,4.4vh,34px);text-align:center}
+.nav ul{display:flex;flex-direction:column;gap:clamp(18px,4.4vh,34px);margin-top:clamp(18px,4.4vh,34px)}
+
+.nav a{
+  color:var(--vert-bouton);
+  text-decoration:none;
+  font-size:clamp(1.3rem,5.4vw,1.6rem);
+  font-weight:400;
+}
+.nav a:hover{text-decoration:underline}
+.nav .accueil{color:var(--bleu-accueil)}
+
+.nav details{width:100%}
+.nav summary{
+  list-style:none;
+  display:flex;align-items:center;justify-content:center;gap:.6em;
+  cursor:pointer;
+  font-size:clamp(1.3rem,5.4vw,1.6rem);
+  color:var(--vert-bouton);
+  position:relative;
+}
+.nav summary::-webkit-details-marker{display:none}
+.nav summary .chevron{
+  position:absolute;left:2%;
+  width:.62em;height:.62em;
+  border-left:2px solid var(--vert-bouton);
+  border-top:2px solid var(--vert-bouton);
+  transform:rotate(45deg);
+  transition:transform .2s;
+}
+.nav details:not([open]) summary .chevron{transform:rotate(225deg)}
+
+/* ── SECTIONS À IMAGE DE FOND ─────────────────────────────────────── */
+.scene{
+  position:relative;
+  min-height:calc(100svh - var(--entete-h));
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  padding:clamp(38px,9vh,80px) clamp(18px,6vw,48px);
+  text-align:center;
+  background-color:#2C4526;
+  background-image:var(--fond,none);
+  background-size:cover;
+  background-position:center;
+}
+
+/* Réserve affichée tant qu'aucune photo n'est renseignée.
+   Dès que --fond contient une image, ajouter la classe "scene--photo". */
+.scene:not(.scene--photo)::before{
+  content:"";position:absolute;inset:0;
+  background:
+    repeating-linear-gradient(45deg,transparent 0 14px,rgba(255,255,255,.045) 14px 15px),
+    linear-gradient(165deg,#30502B 0%,#1E3A20 100%);
+}
+.scene:not(.scene--photo)::after{
+  content:attr(data-photo);
+  position:absolute;left:0;right:0;bottom:16px;
+  font-family:var(--sans);
+  font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(255,255,255,.42);
+  padding-inline:18px;
+  line-height:1.5;
+}
+.scene > *{position:relative;z-index:1}
+
+/* ── TYPOGRAPHIE DES SCÈNES ───────────────────────────────────────── */
+.scene h1,.scene h2,.scene p{
+  font-family:var(--serif);
+  color:var(--or);
+  margin:0;
+  max-width:100%;
+  overflow-wrap:break-word;
+  text-wrap:balance;
+  /* Le relief des textes du site d'origine */
+  text-shadow:
+    2px 2px 0 rgba(45,38,20,.55),
+    4px 4px 7px rgba(0,0,0,.42);
+}
+
+.scene h1{
+  font-weight:700;
+  font-size:clamp(1.8rem,8.5vw,2.9rem);
+  line-height:1.12;
+}
+.scene .intro{
+  font-weight:700;
+  font-size:clamp(1.3rem,6.1vw,1.9rem);
+  line-height:1.3;
+  max-width:22ch;
+  margin-top:.5em;
+}
+.scene .citation{
+  font-style:italic;
+  font-weight:400;
+  font-size:clamp(1.25rem,5.6vw,1.85rem);
+  line-height:1.32;
+  max-width:20ch;
+  margin-bottom:.9em;
+}
+.scene .bienvenue{
+  font-weight:700;
+  font-size:clamp(1.65rem,7.6vw,2.6rem);
+  line-height:1.18;
+  max-width:15ch;
+}
+
+/* ── BOUTONS VERTS ────────────────────────────────────────────────── */
+.boutons{
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  margin-top:clamp(26px,5vh,48px);
+  width:100%;
+}
+.bouton{
+  display:block;
+  width:min(100%,340px);
+  background:var(--vert-bouton);
+  color:var(--blanc);
+  font-family:var(--sans);
+  font-size:clamp(1.12rem,4.8vw,1.35rem);
+  font-weight:400;
+  text-align:center;
+  text-decoration:none;
+  padding:.62em 1em;
+  border:0;border-radius:0;
+  transition:background .18s;
+}
+.bouton:hover{background:#2F6333}
+
+/* ── BLOC « À COMPLÉTER » ─────────────────────────────────────────── */
+.a-completer{
+  margin-top:clamp(26px,5vh,48px);
+  border:1px dashed rgba(224,183,55,.5);
+  padding:20px 22px;
+  max-width:520px;
+  font-family:var(--sans);
+  font-size:.9rem;
+  line-height:1.6;
+  color:rgba(255,255,255,.82);
+  text-shadow:none;
+  text-align:left;
+}
+.a-completer strong{
+  display:block;
+  font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--or);
+  margin-bottom:.6em;
+}
+
+/* ── PIED DE PAGE ─────────────────────────────────────────────────── */
+.pied{
+  background:var(--vert-entete);
+  padding:26px clamp(18px,6vw,48px) 30px;
+  text-align:center;
+  font-family:var(--sans);
+  font-size:.82rem;
+  color:rgba(255,255,255,.68);
+  display:flex;flex-direction:column;gap:.45em;align-items:center;
+}
+.pied a{color:var(--or);text-decoration:none}
+.pied a:hover{text-decoration:underline}
+
+/* ── PAGE DE TEXTE (mentions légales) ─────────────────────────────── */
+.page-texte{
+  background:#FFFFFF;color:#22492A;
+  padding:clamp(34px,8vw,70px) clamp(20px,6vw,48px);
+}
+.page-texte .dedans{max-width:62ch;margin-inline:auto}
+.page-texte h1{font-family:var(--serif);color:var(--vert-bouton);font-size:clamp(1.8rem,7vw,2.6rem);margin:0 0 1rem}
+.page-texte h2{font-family:var(--serif);color:var(--vert-bouton);font-size:1.25rem;margin:2rem 0 .5rem}
+.page-texte p{margin:0 0 1rem;line-height:1.7}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+}
